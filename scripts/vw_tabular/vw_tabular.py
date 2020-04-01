@@ -304,7 +304,8 @@ class TabularConverter:
         # Event identifying fields
         event_row['EventId'] = dsjson_row['EventId']
         event_row['Timestamp'] = dsjson_row['Timestamp']
-        event_row['Version'] = dsjson_row['Version']
+        if 'Version' in event_row:
+            event_row['Version'] = dsjson_row['Version']
         
         # Context features (including namespaces).  Keys are always tuples of (namespace, feature)
         for context_key, context_val in _namespacify(dsjson_row['c']).items():
@@ -589,7 +590,7 @@ def main():
             events_schema_file = args.events_schema_file
         converter.convert_streaming(input_files, events_data_file, events_schema_file, actions_data_file, actions_schema_file)
     else:
-        converter.convert(input_files, events_data_file, actions_data_file)
+        converter.convert_to_csv(input_files, events_data_file, actions_data_file)
 
 
 if __name__ == '__main__':
