@@ -1,6 +1,10 @@
+# +
+# TODO: convert these into proper unit and/or e2e tests
+
 import json
 from CBSample import Sample
 import CBIO
+# -
 
 # multi-action
 # create an array of CB impressions
