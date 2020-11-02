@@ -1,6 +1,3 @@
-# Copyright (c) Microsoft Corporation.
-# Licensed under the MIT license.
-
 '''Module of common code used by the converters from dsjson format to tabular and back again
 '''
 
