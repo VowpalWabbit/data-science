@@ -1,3 +1,5 @@
+import pandas as pd
+
 def string_hash(cmd: str) -> str:
     items = [i.strip() for i in f' {cmd}'.split(' -')]
     items.sort()
@@ -7,13 +9,19 @@ def to_string(opts: dict) -> str:
     return ' '.join(['{0} {1}'.format(key, opts[key]) if not key.startswith('#')
         else str(opts[key]) for key in sorted(opts.keys())])
 
+def __dim_to_list__(d):
+    if isinstance(d, pd.DataFrame):
+        return list(d.loc[:, ~d.columns.str.startswith('!')].to_dict('index').values())
+    else:
+        return d
+
 def product(*dimensions: list) -> list:
     import functools
     import itertools
     result = functools.reduce(
         lambda d1, d2: map(
             lambda tuple: dict(tuple[0], **tuple[1]),
-            itertools.product(d1, d2)
+            itertools.product(__dim_to_list__(d1), __dim_to_list__(d2))
         ), dimensions)
     return list(result)
 
