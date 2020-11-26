@@ -11,11 +11,13 @@ from VwPipeline import Logger
 
 import multiprocessing
 
-def __safe_to_float__(str, default):
+
+def __safe_to_float__(num: str, default):
     try:
-        return float(str)
+        return float(num)
     except (ValueError, TypeError):
         return default
+
 
 # Helper function to extract example counters and metrics from VW output.
 # Counter lines are preceeded by a single line containing the text:
@@ -39,13 +41,14 @@ def __extract_metrics__(out_lines):
                 average_loss_dict[count] = average_loss
                 since_last_dict[count] = since_last
         elif line.startswith('loss'):
-                fields = line.split()
-                if fields[0] == 'loss' and fields[1] == 'last' and fields[2] == 'counter':
-                    record = True    
+            fields = line.split()
+            if fields[0] == 'loss' and fields[1] == 'last' and fields[2] == 'counter':
+                record = True
         elif '=' in line:
             key_value = [p.strip() for p in line.split('=')]
             metrics[key_value[0]] = key_value[1]
     return average_loss_dict, since_last_dict, metrics
+
 
 def __parse_vw_output__(txt):
     average_loss, since_last, metrics = __extract_metrics__(txt.split('\n'))
@@ -57,13 +60,16 @@ def __parse_vw_output__(txt):
     success = loss is not None
     return {'loss_per_example': average_loss, 'since_last': since_last, 'metrics': metrics, 'loss': loss}, success
 
+
 def __metrics_table__(metrics, name):
     return pd.DataFrame([{'n': int(k), name: float(metrics[name][k])}
                          for k in metrics[name]]).set_index('n')
 
+
 def metrics_table(metrics):
     return pd.concat([__metrics_table__(m, 'loss_per_example').join(__metrics_table__(m, 'since_last')).assign(file=i)
                       for i, m in enumerate(metrics)]).reset_index().set_index(['file', 'n'])
+
 
 def final_metrics_table(metrics):
     return [m['metrics'] for m in metrics]
@@ -73,9 +79,11 @@ def __save__(txt, path):
     with open(path, 'w') as f:
         f.write(txt)
 
+
 def __load__(path):
     with open(path, 'r') as f:
         return f.read()
+
 
 class VwInput:
     @staticmethod
@@ -86,14 +94,16 @@ class VwInput:
     def raw(opts, i):
         return {'-d': i, **opts}
 
+
 class VwResult:
     def __init__(self, loss, populated, metrics):
         self.Loss = loss
         self.Populated = populated
         self.Metrics = metrics
 
+
 class Vw:
-    def __init__(self, path, cache, procs=multiprocessing.cpu_count(), reset=False, norun=False, dedup_on_size = False):
+    def __init__(self, path, cache, procs=multiprocessing.cpu_count(), reset=False, norun=False, dedup_on_size=False):
         self.Path = path
         self.Cache = cache
         self.Logger = self.Cache.Logger
@@ -121,7 +131,7 @@ class Vw:
     def __get_salt__(self, path):
         return str(os.stat(path).st_size) if self.DedupOnSize else None
 
-    def run(self, opts_in: dict, opts_out: list, salt = None):
+    def run(self, opts_in: dict, opts_out: list, salt=None):
         populated = {o: self.Cache.get_path(opts_in, o, salt) for o in opts_out}
         metrics_path = self.Cache.get_path(opts_in, salt)
 
@@ -134,14 +144,14 @@ class Vw:
             if not_exist:
                 Logger.debug(self.Logger, f'{not_exist} had not been found.')
             if self.NoRun:
-                raise 'Result is not found, and execution is deprecated'  
+                raise 'Result is not found, and execution is deprecated'
 
             result = self.__run__(opts)
-            __save__(result, metrics_path)                          
+            __save__(result, metrics_path)
         else:
             Logger.debug(self.Logger, f'Result of vw execution is found: {VwOpts.to_string(opts)}')
         raw_result = __load__(metrics_path)
-        Logger.debug(self.Logger, raw_result)        
+        Logger.debug(self.Logger, raw_result)
         parsed, success = __parse_vw_output__(raw_result)
         if not success:
             Logger.critical(self.Logger, f'ERROR: {json.dumps(opts)}')
@@ -153,7 +163,8 @@ class Vw:
         opts_populated = [None] * len(inputs)
         metrics = [None] * len(inputs)
         for index, inp in enumerate(inputs):
-            Logger.info(self.Logger, f'Vw.Test: {inp}, opts_in: {json.dumps(opts_in)}, opts_out: {json.dumps(opts_out)}')
+            Logger.info(self.Logger,
+                        f'Vw.Test: {inp}, opts_in: {json.dumps(opts_in)}, opts_out: {json.dumps(opts_out)}')
             current_opts = input_mode(opts_in, inp)
             salt = self.__get_salt__(inp)
             result, populated = self.run(current_opts, opts_out, salt)
@@ -166,7 +177,7 @@ class Vw:
             inputs = [inputs]
         if isinstance(opts_in, list):
             args = [(inputs, point, opts_out, input_mode) for point in opts_in]
-            return self.Pool.map(self.__test__, args)            
+            return self.Pool.map(self.__test__, args)
         return self.__test__(inputs, opts_in, opts_out, input_mode)
 
     def __train__(self, inputs, opts_in, opts_out, input_mode=VwInput.raw):
@@ -175,7 +186,8 @@ class Vw:
         opts_populated = [None] * len(inputs)
         metrics = [None] * len(inputs)
         for index, inp in enumerate(inputs):
-            Logger.info(self.Logger, f'Vw.Train: {inp}, opts_in: {json.dumps(opts_in)}, opts_out: {json.dumps(opts_out)}')
+            Logger.info(self.Logger,
+                        f'Vw.Train: {inp}, opts_in: {json.dumps(opts_in)}, opts_out: {json.dumps(opts_out)}')
             current_opts = input_mode(opts_in, inp)
             salt = self.__get_salt__(inp)
             if index > 0:
@@ -183,15 +195,15 @@ class Vw:
             result, populated = self.run(current_opts, opts_out, salt)
             opts_populated[index] = populated
             metrics[index] = result
-        return VwResult(result['loss'], opts_populated, metrics)     
+        return VwResult(result['loss'], opts_populated, metrics)
 
     def __train_on_dict__(self, inputs, opts_in, opts_out=[], input_mode=VwInput.raw):
         if not isinstance(inputs, list):
             inputs = [inputs]
         if isinstance(opts_in, list):
             args = [(inputs, point, opts_out, input_mode) for point in opts_in]
-            return self.Pool.map(self.__train__, args)            
-        return self.__train__(inputs, opts_in, opts_out, input_mode)   
+            return self.Pool.map(self.__train__, args)
+        return self.__train__(inputs, opts_in, opts_out, input_mode)
 
     def cache(self, inputs, opts):
         if not isinstance(inputs, list):
@@ -204,7 +216,8 @@ class Vw:
             result = zip(opts_in, self.__train_on_dict__(inputs, opts_in, opts_out, input_mode))
             result_pd = []
             for r in result:
-                results = {'!Loss': r[1].Loss, '!Populated': r[1].Populated, '!Metrics': metrics_table(r[1].Metrics), '!FinalMetrics': final_metrics_table(r[1].Metrics)}
+                results = {'!Loss': r[1].Loss, '!Populated': r[1].Populated, '!Metrics': metrics_table(r[1].Metrics),
+                           '!FinalMetrics': final_metrics_table(r[1].Metrics)}
                 result_pd.append(dict(r[0], **results))
             return pd.DataFrame(result_pd)
         else:
@@ -216,9 +229,9 @@ class Vw:
             result = zip(opts_in, self.__test_on_dict__(inputs, opts_in, opts_out, input_mode))
             result_pd = []
             for r in result:
-                results = {'!Loss': r[1].Loss, '!Populated': r[1].Populated, '!Metrics': metrics_table(r[1].Metrics), '!FinalMetrics': final_metrics_table(r[1].Metrics)}
+                results = {'!Loss': r[1].Loss, '!Populated': r[1].Populated, '!Metrics': metrics_table(r[1].Metrics),
+                           '!FinalMetrics': final_metrics_table(r[1].Metrics)}
                 result_pd.append(dict(r[0], **results))
             return pd.DataFrame(result_pd)
         else:
             return self.__test_on_dict__(inputs, opts_in, opts_out, input_mode)
-        

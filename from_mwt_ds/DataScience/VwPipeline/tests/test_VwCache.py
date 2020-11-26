@@ -1,12 +1,13 @@
 import unittest
 from VwPipeline.VwCache import VwCache
 
+
 class TestVwCache(unittest.TestCase):
     def test_equal_path_for_equal_options(self):
         opts1 = {'#cmd': '--ccb_explore_adf --dsjson --epsilon 0.1 -d file.txt'}
         opts2 = {'#blabla': '--dsjson --ccb_explore_adf',
-                '--epsilon': 0.1,
-                '-d': 'file.txt'}
+                 '--epsilon': 0.1,
+                 '-d': 'file.txt'}
         cache = VwCache('test_folder')
 
         self.assertEqual(
@@ -16,8 +17,8 @@ class TestVwCache(unittest.TestCase):
     def test_non_equal_path_for_non_equal_options(self):
         opts1 = {'#cmd': '--ccb_explore_adf --dsjson --epsilon 0.1 -d file.txt'}
         opts2 = {'#blabla': '--ccb_explore_adf',
-                '--epsilon': 0.1,
-                '-d': 'file.txt'}
+                 '--epsilon': 0.1,
+                 '-d': 'file.txt'}
         cache = VwCache('test_folder')
 
         self.assertNotEqual(
@@ -35,4 +36,3 @@ class TestVwCache(unittest.TestCase):
 
 if __name__ == '__main__':
     unittest.main()
-

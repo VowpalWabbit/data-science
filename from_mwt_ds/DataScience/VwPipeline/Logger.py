@@ -1,11 +1,11 @@
 import logging
 import time
-import sys
 
 from threading import Lock
 
+
 class console_logger:
-    def __init__(self, level: str ='INFO'):
+    def __init__(self, level: str = 'INFO'):
         self.level = logging.getLevelName(level)
         self.lock = Lock()
 
@@ -30,21 +30,26 @@ class console_logger:
         print(prefix + message)
         self.lock.release()
 
+
 def debug(logger, message: str):
     if logger:
         logger.debug(message)
+
 
 def info(logger, message: str):
     if logger:
         logger.info(message)
 
+
 def warning(logger, message: str):
     if logger:
         logger.warning(message)
 
+
 def error(logger, message: str):
     if logger:
         logger.error(message)
+
 
 def critical(logger, message: str):
     if logger:
