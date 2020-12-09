@@ -4,6 +4,7 @@ import re
 import json
 import os
 import pandas as pd
+import enum
 
 from VwPipeline.Pool import SeqPool, MultiThreadPool
 from VwPipeline import VwOpts
@@ -95,28 +96,48 @@ class VwInput:
         return {'-d': i, **opts}
 
 
+class ExecutionStatus(enum.Enum):
+    NotStarted = 1
+    Running = 2
+    Success = 3
+    Failed = 4
+
+
 class VwResult:
-    def __init__(self, loss, populated, metrics):
-        self.Loss = loss
-        self.Populated = populated
-        self.Metrics = metrics
+    def __init__(self, count):
+        self.Loss = None
+        self.Populated = [None] * count
+        self.Metrics = [None] * count
+        self.Status = ExecutionStatus.NotStarted
 
 
-class Vw:
-    def __init__(self, path, cache, procs=multiprocessing.cpu_count(), reset=False, norun=False, dedup_on_size=False):
+class Task:
+    def __init__(self, path, cache, file, opts_in, opts_out, input_mode, model, norun):
         self.Path = path
-        self.Cache = cache
-        self.Logger = self.Cache.Logger
-        self.Pool = SeqPool() if procs == 1 else MultiThreadPool(procs)
-        self.Reset = reset
+        self.File = file
+        self.Logger = cache.Logger
+        self.Status = ExecutionStatus.NotStarted
+        self.OptsIn = opts_in
+        self.OptsOut = opts_out
+        self.InputMode = input_mode
+        self.Model = model
         self.NoRun = norun
-        self.DedupOnSize = dedup_on_size
+        self.Result = {}
+        self.__prepare_opts__(cache)
 
-    def __generate_command_line__(self, opts):
-        return f'{self.Path} {VwOpts.to_string(opts)}'
+    def __prepare_opts__(self, cache):
+        salt = None
+        self.Opts = self.OptsIn.copy()
+        self.Opts[self.InputMode] = self.File
+        if self.Model:
+            self.Opts['-i'] = self.Model
 
-    def __run__(self, opts: dict):
-        command = self.__generate_command_line__(opts)
+        self.Populated = {o: cache.get_path(self.Opts, o, salt) for o in self.OptsOut}
+        self.MetricsPath = cache.get_path(self.Opts, salt)
+        self.Opts = dict(self.Opts, **self.Populated)
+
+    def __run__(self):
+        command = f'{self.Path} {VwOpts.to_string(self.Opts)}'
         Logger.debug(self.Logger, f'Executing: {command}')
         process = subprocess.Popen(
             command.split(),
@@ -128,8 +149,74 @@ class Vw:
         error = process.communicate()[1]
         return error
 
-    def __get_salt__(self, path):
-        return str(os.stat(path).st_size) if self.DedupOnSize else None
+    def run(self):
+        result_files = list(self.Populated.values()) + [self.MetricsPath]
+        not_exist = next((p for p in result_files if not os.path.exists(p)), None)
+
+        if not_exist:
+            Logger.debug(self.Logger, f'{not_exist} had not been found.')
+            if self.NoRun:
+                raise Exception('Result is not found, and execution is deprecated')
+
+            result = self.__run__()
+            __save__(result, self.MetricsPath)
+        else:
+            Logger.debug(self.Logger, f'Result of vw execution is found: {VwOpts.to_string(self.Opts)}')
+        raw_result = __load__(self.MetricsPath)
+        Logger.debug(self.Logger, raw_result)
+        self.Result, success = __parse_vw_output__(raw_result)
+        self.Status = ExecutionStatus.Success if success else ExecutionStatus.Failed
+
+
+#        if not success:
+#            Logger.critical(self.Logger, f'ERROR: {json.dumps(opts)}')
+#            Logger.critical(self.Logger, raw_result)
+#            raise Exception('Unsuccesful vw execution')
+#        return parsed, populated
+
+
+class Job:
+    def __init__(self):
+        pass
+
+    def run(self):
+        self.Result.Status = ExecutionStatus.Running
+        for index, t in enumerate(self.Tasks):
+            t.run()
+            if t.Status == ExecutionStatus.Failed:
+                self.Result.Status = ExecutionStatus.Failed
+                return
+            self.Result.Populated[index] = t.Populated
+            self.Result.Metrics[index] = t.Result
+            self.Result.Loss = t.Result['loss']
+        self.Result.Status = ExecutionStatus.Success
+        return self.Result
+
+
+class TestJob(Job):
+    def __init__(self, path, cache, files, opts_in, opts_out, input_mode, norun):
+        self.Tasks = []
+        for f in files:
+            self.Tasks.append(Task(path, cache, f, opts_in, opts_out, input_mode, None, norun))
+        self.Result = VwResult(len(files))
+
+
+class TrainJob(Job):
+    def __init__(self, path, cache, files, opts_in, opts_out, input_mode, norun):
+        self.Tasks = []
+        for i, f in enumerate(files):
+            model = None if i == 0 else self.Tasks[i - 1].Populated['-f']
+            self.Tasks.append(Task(path, cache, f, opts_in, opts_out, input_mode, model, norun))
+        self.Result = VwResult(len(files))
+
+
+class Vw:
+    def __init__(self, path, cache, procs=multiprocessing.cpu_count(), norun=False):
+        self.Path = path
+        self.Cache = cache
+        self.Logger = self.Cache.Logger
+        self.Pool = SeqPool() if procs == 1 else MultiThreadPool(procs)
+        self.NoRun = norun
 
     def run(self, opts_in: dict, opts_out: list, salt=None):
         populated = {o: self.Cache.get_path(opts_in, o, salt) for o in opts_out}
@@ -160,17 +247,8 @@ class Vw:
         return parsed, populated
 
     def __test__(self, inputs, opts_in, opts_out, input_mode):
-        opts_populated = [None] * len(inputs)
-        metrics = [None] * len(inputs)
-        for index, inp in enumerate(inputs):
-            Logger.info(self.Logger,
-                        f'Vw.Test: {inp}, opts_in: {json.dumps(opts_in)}, opts_out: {json.dumps(opts_out)}')
-            current_opts = input_mode(opts_in, inp)
-            salt = self.__get_salt__(inp)
-            result, populated = self.run(current_opts, opts_out, salt)
-            opts_populated[index] = populated
-            metrics[index] = result
-        return VwResult(result['loss'], opts_populated, metrics)
+        job = TestJob(self.Path, self.Cache, inputs, opts_in, opts_out, input_mode, self.NoRun)
+        return job.run()
 
     def __test_on_dict__(self, inputs, opts_in, opts_out, input_mode=VwInput.raw):
         if not isinstance(inputs, list):
@@ -183,19 +261,8 @@ class Vw:
     def __train__(self, inputs, opts_in, opts_out, input_mode=VwInput.raw):
         if '-f' not in opts_out:
             opts_out.append('-f')
-        opts_populated = [None] * len(inputs)
-        metrics = [None] * len(inputs)
-        for index, inp in enumerate(inputs):
-            Logger.info(self.Logger,
-                        f'Vw.Train: {inp}, opts_in: {json.dumps(opts_in)}, opts_out: {json.dumps(opts_out)}')
-            current_opts = input_mode(opts_in, inp)
-            salt = self.__get_salt__(inp)
-            if index > 0:
-                current_opts['-i'] = opts_populated[index - 1]['-f']
-            result, populated = self.run(current_opts, opts_out, salt)
-            opts_populated[index] = populated
-            metrics[index] = result
-        return VwResult(result['loss'], opts_populated, metrics)
+        job = TrainJob(self.Path, self.Cache, inputs, opts_in, opts_out, input_mode, self.NoRun)
+        return job.run()
 
     def __train_on_dict__(self, inputs, opts_in, opts_out=[], input_mode=VwInput.raw):
         if not isinstance(inputs, list):
@@ -210,7 +277,7 @@ class Vw:
             inputs = [inputs]
         return self.test(inputs, {'#cmd': VwOpts.to_cache_cmd(opts)}, ['--cache_file'])
 
-    def train(self, inputs, opts_in, opts_out=[], input_mode=VwInput.raw):
+    def train(self, inputs, opts_in, opts_out=[], input_mode='-d'):
         if isinstance(opts_in, pd.DataFrame):
             opts_in = list(opts_in.loc[:, ~opts_in.columns.str.startswith('!')].to_dict('index').values())
             result = zip(opts_in, self.__train_on_dict__(inputs, opts_in, opts_out, input_mode))
@@ -223,7 +290,7 @@ class Vw:
         else:
             return self.__train_on_dict__(inputs, opts_in, opts_out, input_mode)
 
-    def test(self, inputs, opts_in, opts_out=[], input_mode=VwInput.raw):
+    def test(self, inputs, opts_in, opts_out=[], input_mode='-d'):
         if isinstance(opts_in, pd.DataFrame):
             opts_in = list(opts_in.loc[:, ~opts_in.columns.str.startswith('!')].to_dict('index').values())
             result = zip(opts_in, self.__test_on_dict__(inputs, opts_in, opts_out, input_mode))
