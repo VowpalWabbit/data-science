@@ -112,7 +112,7 @@ class VwResult:
 
 
 class Task:
-    def __init__(self, path, cache, file, opts_in, opts_out, input_mode, model, norun):
+    def __init__(self, path, cache, file, opts_in, opts_out, input_mode, model, model_folder = '', norun=False):
         self.Path = path
         self.File = file
         self.Logger = cache.Logger
@@ -121,6 +121,7 @@ class Task:
         self.OptsOut = opts_out
         self.InputMode = input_mode
         self.Model = model
+        self.ModelFolder = model_folder
         self.NoRun = norun
         self.Result = {}
         self.__prepare_opts__(cache)
@@ -132,8 +133,14 @@ class Task:
         if self.Model:
             self.Opts['-i'] = self.Model
 
+        self.PopulatedRelative = {o: cache.get_rel_path(self.Opts, o, salt) for o in self.OptsOut}
         self.Populated = {o: cache.get_path(self.Opts, o, salt) for o in self.OptsOut}
+
         self.MetricsPath = cache.get_path(self.Opts, salt)
+
+        if self.Model:
+            self.Opts['-i'] = os.path.join(self.ModelFolder, self.Model)
+            
         self.Opts = dict(self.Opts, **self.Populated)
 
     def __run__(self):
@@ -197,7 +204,7 @@ class TestJob(Job):
     def __init__(self, path, cache, files, opts_in, opts_out, input_mode, norun):
         self.Tasks = []
         for f in files:
-            self.Tasks.append(Task(path, cache, f, opts_in, opts_out, input_mode, None, norun))
+            self.Tasks.append(Task(path, cache, f, opts_in, opts_out, input_mode, None, '', norun))
         self.Result = VwResult(len(files))
 
 
@@ -205,8 +212,8 @@ class TrainJob(Job):
     def __init__(self, path, cache, files, opts_in, opts_out, input_mode, norun):
         self.Tasks = []
         for i, f in enumerate(files):
-            model = None if i == 0 else self.Tasks[i - 1].Populated['-f']
-            self.Tasks.append(Task(path, cache, f, opts_in, opts_out, input_mode, model, norun))
+            model = None if i == 0 else self.Tasks[i - 1].PopulatedRelative['-f']
+            self.Tasks.append(Task(path, cache, f, opts_in, opts_out, input_mode, model, cache.Path, norun))
         self.Result = VwResult(len(files))
 
 
