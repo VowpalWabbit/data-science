@@ -112,9 +112,10 @@ class VwResult:
 
 
 class Task:
-    def __init__(self, path, cache, file, opts_in, opts_out, input_mode, model, model_folder = '', norun=False):
+    def __init__(self, path, cache, file, folder, opts_in, opts_out, input_mode, model, model_folder = '', norun=False):
         self.Path = path
         self.File = file
+        self.Folder = folder
         self.Logger = cache.Logger
         self.Status = ExecutionStatus.NotStarted
         self.OptsIn = opts_in
@@ -141,6 +142,7 @@ class Task:
         if self.Model:
             self.Opts['-i'] = os.path.join(self.ModelFolder, self.Model)
             
+        self.Opts[self.InputMode] = os.path.join(self.Folder, self.File)
         self.Opts = dict(self.Opts, **self.Populated)
 
     def __run__(self):
@@ -201,19 +203,19 @@ class Job:
 
 
 class TestJob(Job):
-    def __init__(self, path, cache, files, opts_in, opts_out, input_mode, norun):
+    def __init__(self, path, cache, files, input_dir, opts_in, opts_out, input_mode, norun):
         self.Tasks = []
         for f in files:
-            self.Tasks.append(Task(path, cache, f, opts_in, opts_out, input_mode, None, '', norun))
+            self.Tasks.append(Task(path, cache, f, input_dir, opts_in, opts_out, input_mode, None, cache.Path, norun))
         self.Result = VwResult(len(files))
 
 
 class TrainJob(Job):
-    def __init__(self, path, cache, files, opts_in, opts_out, input_mode, norun):
+    def __init__(self, path, cache, files, input_dir, opts_in, opts_out, input_mode, norun):
         self.Tasks = []
         for i, f in enumerate(files):
             model = None if i == 0 else self.Tasks[i - 1].PopulatedRelative['-f']
-            self.Tasks.append(Task(path, cache, f, opts_in, opts_out, input_mode, model, cache.Path, norun))
+            self.Tasks.append(Task(path, cache, f, input_dir, opts_in, opts_out, input_mode, model, cache.Path, norun))
         self.Result = VwResult(len(files))
 
 
@@ -253,11 +255,11 @@ class Vw:
             raise Exception('Unsuccesful vw execution')
         return parsed, populated
 
-    def __test__(self, inputs, opts_in, opts_out, input_mode):
-        job = TestJob(self.Path, self.Cache, inputs, opts_in, opts_out, input_mode, self.NoRun)
+    def __test__(self, inputs, opts_in, opts_out, input_mode='-d', input_dir=''):
+        job = TestJob(self.Path, self.Cache, inputs, input_dir, opts_in, opts_out, input_mode, self.NoRun)
         return job.run()
 
-    def __test_on_dict__(self, inputs, opts_in, opts_out, input_mode=VwInput.raw):
+    def __test_on_dict__(self, inputs, opts_in, opts_out, input_mode='-d', input_dir=''):
         if not isinstance(inputs, list):
             inputs = [inputs]
         if isinstance(opts_in, list):
@@ -265,13 +267,13 @@ class Vw:
             return self.Pool.map(self.__test__, args)
         return self.__test__(inputs, opts_in, opts_out, input_mode)
 
-    def __train__(self, inputs, opts_in, opts_out, input_mode=VwInput.raw):
+    def __train__(self, inputs, opts_in, opts_out, input_mode='-d', input_dir=''):
         if '-f' not in opts_out:
             opts_out.append('-f')
-        job = TrainJob(self.Path, self.Cache, inputs, opts_in, opts_out, input_mode, self.NoRun)
+        job = TrainJob(self.Path, self.Cache, inputs, input_dir, opts_in, opts_out, input_mode, self.NoRun)
         return job.run()
 
-    def __train_on_dict__(self, inputs, opts_in, opts_out=[], input_mode=VwInput.raw):
+    def __train_on_dict__(self, inputs, opts_in, opts_out=[], input_mode='-d', input_dir=''):
         if not isinstance(inputs, list):
             inputs = [inputs]
         if isinstance(opts_in, list):
@@ -279,12 +281,12 @@ class Vw:
             return self.Pool.map(self.__train__, args)
         return self.__train__(inputs, opts_in, opts_out, input_mode)
 
-    def cache(self, inputs, opts):
+    def cache(self, inputs, opts, input_dir = ''):
         if not isinstance(inputs, list):
             inputs = [inputs]
         return self.test(inputs, {'#cmd': VwOpts.to_cache_cmd(opts)}, ['--cache_file'])
 
-    def train(self, inputs, opts_in, opts_out=[], input_mode='-d'):
+    def train(self, inputs, opts_in, opts_out=[], input_mode='-d', input_dir = ''):
         if isinstance(opts_in, pd.DataFrame):
             opts_in = list(opts_in.loc[:, ~opts_in.columns.str.startswith('!')].to_dict('index').values())
             result = zip(opts_in, self.__train_on_dict__(inputs, opts_in, opts_out, input_mode))
@@ -297,7 +299,7 @@ class Vw:
         else:
             return self.__train_on_dict__(inputs, opts_in, opts_out, input_mode)
 
-    def test(self, inputs, opts_in, opts_out=[], input_mode='-d'):
+    def test(self, inputs, opts_in, opts_out=[], input_mode='-d', input_dir = ''):
         if isinstance(opts_in, pd.DataFrame):
             opts_in = list(opts_in.loc[:, ~opts_in.columns.str.startswith('!')].to_dict('index').values())
             result = zip(opts_in, self.__test_on_dict__(inputs, opts_in, opts_out, input_mode))
