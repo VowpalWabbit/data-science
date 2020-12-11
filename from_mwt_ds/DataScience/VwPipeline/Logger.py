@@ -55,20 +55,21 @@ class EmptyLogger:
         pass
 
 class WidgetHandler:            
-    def __init__(self):
+    def __init__(self, leave=False):
         self.Total = None
         self.Total = 0
         self.Tasks = 0
         self.Done = 0
         self.TimePerJob = 0
+        self.Leave = leave
 
     def start(self, inputs, opts_in):
         self.Jobs = {}
         self.Tasks = len(inputs)
-        self.Total = tqdm(range(len(opts_in)), desc='Total', leave=False)    
+        self.Total = tqdm(range(len(opts_in)), desc='Total', leave=self.Leave)    
 
     def on_job_start(self, job):
-        self.Jobs[job.Name] = tqdm(range(self.Tasks), desc=job.Name, leave=False)
+        self.Jobs[job.Name] = tqdm(range(self.Tasks), desc=job.Name, leave=self.Leave)
 
     def on_job_finish(self, job):
         self.Jobs[job.Name].close()
