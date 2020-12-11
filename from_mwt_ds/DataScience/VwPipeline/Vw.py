@@ -1,6 +1,4 @@
-import sys
 import subprocess
-import re
 import json
 import os
 import pandas as pd
@@ -84,16 +82,6 @@ def __save__(txt, path):
 def __load__(path):
     with open(path, 'r') as f:
         return f.read()
-
-
-class VwInput:
-    @staticmethod
-    def cache(opts, i):
-        return {'--cache_file': i, **opts}
-
-    @staticmethod
-    def raw(opts, i):
-        return {'-d': i, **opts}
 
 
 class ExecutionStatus(enum.Enum):
@@ -199,12 +187,13 @@ class Job:
             self.Result.Metrics[index] = t.Result
             self.Result.Loss = t.Result['loss']
         self.Result.Status = ExecutionStatus.Success
-        return self.Result
+        return self
 
 
 class TestJob(Job):
     def __init__(self, path, cache, files, input_dir, opts_in, opts_out, input_mode, norun):
         self.Tasks = []
+        self.Name = VwOpts.to_string({k: opts_in[k] for k in opts_in.keys() - {'#base'}})
         for f in files:
             self.Tasks.append(Task(path, cache, f, input_dir, opts_in, opts_out, input_mode, None, cache.Path, norun))
         self.Result = VwResult(len(files))
@@ -213,6 +202,9 @@ class TestJob(Job):
 class TrainJob(Job):
     def __init__(self, path, cache, files, input_dir, opts_in, opts_out, input_mode, norun):
         self.Tasks = []
+        if '-f' not in opts_out:
+            opts_out.append('-f')
+        self.Name = VwOpts.to_string({k: opts_in[k] for k in opts_in.keys() - {'#base'}})
         for i, f in enumerate(files):
             model = None if i == 0 else self.Tasks[i - 1].PopulatedRelative['-f']
             self.Tasks.append(Task(path, cache, f, input_dir, opts_in, opts_out, input_mode, model, cache.Path, norun))
@@ -227,87 +219,37 @@ class Vw:
         self.Pool = SeqPool() if procs == 1 else MultiThreadPool(procs)
         self.NoRun = norun
 
-    def run(self, opts_in: dict, opts_out: list, salt=None):
-        populated = {o: self.Cache.get_path(opts_in, o, salt) for o in opts_out}
-        metrics_path = self.Cache.get_path(opts_in, salt)
+    def __run_impl__(self, inputs, opts_in, opts_out, input_mode, input_dir, job_type):
+        job = job_type(self.Path, self.Cache, inputs, input_dir, opts_in, opts_out, input_mode, self.NoRun)
+        return job.run()
 
-        result_files = list(populated.values()) + [metrics_path]
-        not_exist = next((p for p in result_files if not os.path.exists(p)), None)
+    def __run_on_dict__(self, inputs, opts_in, opts_out, input_mode, input_dir, job_type):
+        if not isinstance(inputs, list):
+            inputs = [inputs]
+        if isinstance(opts_in, list):
+            args = [(inputs, point, opts_out, input_mode, input_dir, job_type) for point in opts_in]
+            return self.Pool.map(self.__run_impl__, args)
+        return self.__run_impl__(inputs, opts_in, opts_out, input_mode, input_dir, job_type)
 
-        opts = dict(opts_in, **populated)
-
-        if self.Reset or not_exist:
-            if not_exist:
-                Logger.debug(self.Logger, f'{not_exist} had not been found.')
-            if self.NoRun:
-                raise 'Result is not found, and execution is deprecated'
-
-            result = self.__run__(opts)
-            __save__(result, metrics_path)
+    def __run__(self, inputs, opts_in, opts_out, input_mode, input_dir, job_type):
+        if isinstance(opts_in, pd.DataFrame):
+            opts_in = list(opts_in.loc[:, ~opts_in.columns.str.startswith('!')].to_dict('index').values())
+            result = zip(opts_in, self.__run_on_dict__(inputs, opts_in, opts_out, input_mode, input_dir, job_type))
+            result_pd = []
+            for r in result:
+                results = {'!Loss': r[1].Result.Loss, '!Populated': r[1].Result.Populated,
+                           '!Metrics': metrics_table(r[1].Result.Metrics),
+                           '!FinalMetrics': final_metrics_table(r[1].Result.Metrics)}
+                result_pd.append(dict(r[0], **results))
+            return pd.DataFrame(result_pd)
         else:
-            Logger.debug(self.Logger, f'Result of vw execution is found: {VwOpts.to_string(opts)}')
-        raw_result = __load__(metrics_path)
-        Logger.debug(self.Logger, raw_result)
-        parsed, success = __parse_vw_output__(raw_result)
-        if not success:
-            Logger.critical(self.Logger, f'ERROR: {json.dumps(opts)}')
-            Logger.critical(self.Logger, raw_result)
-            raise Exception('Unsuccesful vw execution')
-        return parsed, populated
-
-    def __test__(self, inputs, opts_in, opts_out, input_mode='-d', input_dir=''):
-        job = TestJob(self.Path, self.Cache, inputs, input_dir, opts_in, opts_out, input_mode, self.NoRun)
-        return job.run()
-
-    def __test_on_dict__(self, inputs, opts_in, opts_out, input_mode='-d', input_dir=''):
-        if not isinstance(inputs, list):
-            inputs = [inputs]
-        if isinstance(opts_in, list):
-            args = [(inputs, point, opts_out, input_mode) for point in opts_in]
-            return self.Pool.map(self.__test__, args)
-        return self.__test__(inputs, opts_in, opts_out, input_mode)
-
-    def __train__(self, inputs, opts_in, opts_out, input_mode='-d', input_dir=''):
-        if '-f' not in opts_out:
-            opts_out.append('-f')
-        job = TrainJob(self.Path, self.Cache, inputs, input_dir, opts_in, opts_out, input_mode, self.NoRun)
-        return job.run()
-
-    def __train_on_dict__(self, inputs, opts_in, opts_out=[], input_mode='-d', input_dir=''):
-        if not isinstance(inputs, list):
-            inputs = [inputs]
-        if isinstance(opts_in, list):
-            args = [(inputs, point, opts_out, input_mode) for point in opts_in]
-            return self.Pool.map(self.__train__, args)
-        return self.__train__(inputs, opts_in, opts_out, input_mode)
+            return self.__run_on_dict__(inputs, opts_in, opts_out, input_mode, input_dir, job_type)
 
     def cache(self, inputs, opts, input_dir = ''):
-        if not isinstance(inputs, list):
-            inputs = [inputs]
-        return self.test(inputs, {'#cmd': VwOpts.to_cache_cmd(opts)}, ['--cache_file'])
+        return self.__run__(inputs, {'#cmd': VwOpts.to_cache_cmd(opts)}, ['--cache_file'], '-d', input_dir, TestJob)
 
-    def train(self, inputs, opts_in, opts_out=[], input_mode='-d', input_dir = ''):
-        if isinstance(opts_in, pd.DataFrame):
-            opts_in = list(opts_in.loc[:, ~opts_in.columns.str.startswith('!')].to_dict('index').values())
-            result = zip(opts_in, self.__train_on_dict__(inputs, opts_in, opts_out, input_mode))
-            result_pd = []
-            for r in result:
-                results = {'!Loss': r[1].Loss, '!Populated': r[1].Populated, '!Metrics': metrics_table(r[1].Metrics),
-                           '!FinalMetrics': final_metrics_table(r[1].Metrics)}
-                result_pd.append(dict(r[0], **results))
-            return pd.DataFrame(result_pd)
-        else:
-            return self.__train_on_dict__(inputs, opts_in, opts_out, input_mode)
+    def train(self, inputs, opts_in, opts_out=[], input_mode='-d', input_dir=''):
+        return self.__run__(inputs, opts_in, opts_out, input_mode, input_dir, TrainJob)
 
-    def test(self, inputs, opts_in, opts_out=[], input_mode='-d', input_dir = ''):
-        if isinstance(opts_in, pd.DataFrame):
-            opts_in = list(opts_in.loc[:, ~opts_in.columns.str.startswith('!')].to_dict('index').values())
-            result = zip(opts_in, self.__test_on_dict__(inputs, opts_in, opts_out, input_mode))
-            result_pd = []
-            for r in result:
-                results = {'!Loss': r[1].Loss, '!Populated': r[1].Populated, '!Metrics': metrics_table(r[1].Metrics),
-                           '!FinalMetrics': final_metrics_table(r[1].Metrics)}
-                result_pd.append(dict(r[0], **results))
-            return pd.DataFrame(result_pd)
-        else:
-            return self.__test_on_dict__(inputs, opts_in, opts_out, input_mode)
+    def test(self, inputs, opts_in, opts_out=[], input_mode='-d', input_dir=''):
+        return self.__run__(inputs, opts_in, opts_out, input_mode, input_dir, TestJob)
