@@ -1,9 +1,8 @@
-import sys
 import subprocess
-import re
 import json
 import os
 import pandas as pd
+import enum
 
 from VwPipeline.Pool import SeqPool, MultiThreadPool
 from VwPipeline import VwOpts
@@ -11,11 +10,13 @@ from VwPipeline import Logger
 
 import multiprocessing
 
-def __safe_to_float__(str, default):
+
+def __safe_to_float__(num: str, default):
     try:
-        return float(str)
+        return float(num)
     except (ValueError, TypeError):
         return default
+
 
 # Helper function to extract example counters and metrics from VW output.
 # Counter lines are preceeded by a single line containing the text:
@@ -39,13 +40,14 @@ def __extract_metrics__(out_lines):
                 average_loss_dict[count] = average_loss
                 since_last_dict[count] = since_last
         elif line.startswith('loss'):
-                fields = line.split()
-                if fields[0] == 'loss' and fields[1] == 'last' and fields[2] == 'counter':
-                    record = True    
+            fields = line.split()
+            if fields[0] == 'loss' and fields[1] == 'last' and fields[2] == 'counter':
+                record = True
         elif '=' in line:
             key_value = [p.strip() for p in line.split('=')]
             metrics[key_value[0]] = key_value[1]
     return average_loss_dict, since_last_dict, metrics
+
 
 def __parse_vw_output__(txt):
     average_loss, since_last, metrics = __extract_metrics__(txt.split('\n'))
@@ -57,13 +59,16 @@ def __parse_vw_output__(txt):
     success = loss is not None
     return {'loss_per_example': average_loss, 'since_last': since_last, 'metrics': metrics, 'loss': loss}, success
 
+
 def __metrics_table__(metrics, name):
     return pd.DataFrame([{'n': int(k), name: float(metrics[name][k])}
                          for k in metrics[name]]).set_index('n')
 
+
 def metrics_table(metrics):
     return pd.concat([__metrics_table__(m, 'loss_per_example').join(__metrics_table__(m, 'since_last')).assign(file=i)
                       for i, m in enumerate(metrics)]).reset_index().set_index(['file', 'n'])
+
 
 def final_metrics_table(metrics):
     return [m['metrics'] for m in metrics]
@@ -73,41 +78,64 @@ def __save__(txt, path):
     with open(path, 'w') as f:
         f.write(txt)
 
+
 def __load__(path):
     with open(path, 'r') as f:
         return f.read()
 
-class VwInput:
-    @staticmethod
-    def cache(opts, i):
-        return {'--cache_file': i, **opts}
 
-    @staticmethod
-    def raw(opts, i):
-        return {'-d': i, **opts}
+class ExecutionStatus(enum.Enum):
+    NotStarted = 1
+    Running = 2
+    Success = 3
+    Failed = 4
+
 
 class VwResult:
-    def __init__(self, loss, populated, metrics):
-        self.Loss = loss
-        self.Populated = populated
-        self.Metrics = metrics
+    def __init__(self, count):
+        self.Loss = None
+        self.Populated = [None] * count
+        self.Metrics = [None] * count
+        self.Status = ExecutionStatus.NotStarted
 
-class Vw:
-    def __init__(self, path, cache, procs=multiprocessing.cpu_count(), reset=False, norun=False, dedup_on_size = False):
+
+class Task:
+    def __init__(self, path, cache, file, folder, opts_in, opts_out, input_mode, model, model_folder = '', norun=False):
         self.Path = path
-        self.Cache = cache
-        self.Logger = self.Cache.Logger
-        self.Pool = SeqPool() if procs == 1 else MultiThreadPool(procs)
-        self.Reset = reset
+        self.File = file
+        self.Folder = folder
+        self.Logger = cache.Logger
+        self.Status = ExecutionStatus.NotStarted
+        self.OptsIn = opts_in
+        self.OptsOut = opts_out
+        self.InputMode = input_mode
+        self.Model = model
+        self.ModelFolder = model_folder
         self.NoRun = norun
-        self.DedupOnSize = dedup_on_size
+        self.Result = {}
+        self.__prepare_opts__(cache)
 
-    def __generate_command_line__(self, opts):
-        return f'{self.Path} {VwOpts.to_string(opts)}'
+    def __prepare_opts__(self, cache):
+        salt = None
+        self.Opts = self.OptsIn.copy()
+        self.Opts[self.InputMode] = self.File
+        if self.Model:
+            self.Opts['-i'] = self.Model
 
-    def __run__(self, opts: dict):
-        command = self.__generate_command_line__(opts)
-        Logger.debug(self.Logger, f'Executing: {command}')
+        self.PopulatedRelative = {o: cache.get_rel_path(self.Opts, o, salt) for o in self.OptsOut}
+        self.Populated = {o: cache.get_path(self.Opts, o, salt) for o in self.OptsOut}
+
+        self.MetricsPath = cache.get_path(self.Opts, salt)
+
+        if self.Model:
+            self.Opts['-i'] = os.path.join(self.ModelFolder, self.Model)
+            
+        self.Opts[self.InputMode] = os.path.join(self.Folder, self.File)
+        self.Opts = dict(self.Opts, **self.Populated)
+
+    def __run__(self):
+        command = f'{self.Path} {VwOpts.to_string(self.Opts)}'
+        self.Logger.debug(f'Executing: {command}')
         process = subprocess.Popen(
             command.split(),
             universal_newlines=True,
@@ -118,107 +146,119 @@ class Vw:
         error = process.communicate()[1]
         return error
 
-    def __get_salt__(self, path):
-        return str(os.stat(path).st_size) if self.DedupOnSize else None
-
-    def run(self, opts_in: dict, opts_out: list, salt = None):
-        populated = {o: self.Cache.get_path(opts_in, o, salt) for o in opts_out}
-        metrics_path = self.Cache.get_path(opts_in, salt)
-
-        result_files = list(populated.values()) + [metrics_path]
+    def run(self):
+        result_files = list(self.Populated.values()) + [self.MetricsPath]
         not_exist = next((p for p in result_files if not os.path.exists(p)), None)
 
-        opts = dict(opts_in, **populated)
-
-        if self.Reset or not_exist:
-            if not_exist:
-                Logger.debug(self.Logger, f'{not_exist} had not been found.')
+        if not_exist:
+            self.Logger.debug(f'{not_exist} had not been found.')
             if self.NoRun:
-                raise 'Result is not found, and execution is deprecated'  
+                raise Exception('Result is not found, and execution is deprecated')
 
-            result = self.__run__(opts)
-            __save__(result, metrics_path)                          
+            result = self.__run__()
+            __save__(result, self.MetricsPath)
         else:
-            Logger.debug(self.Logger, f'Result of vw execution is found: {VwOpts.to_string(opts)}')
-        raw_result = __load__(metrics_path)
-        Logger.debug(self.Logger, raw_result)        
-        parsed, success = __parse_vw_output__(raw_result)
-        if not success:
-            Logger.critical(self.Logger, f'ERROR: {json.dumps(opts)}')
-            Logger.critical(self.Logger, raw_result)
-            raise Exception('Unsuccesful vw execution')
-        return parsed, populated
+            self.Logger.debug(f'Result of vw execution is found: {VwOpts.to_string(self.Opts)}')
+        raw_result = __load__(self.MetricsPath)
+        self.Logger.debug(raw_result)
+        self.Result, success = __parse_vw_output__(raw_result)
+        self.Status = ExecutionStatus.Success if success else ExecutionStatus.Failed
 
-    def __test__(self, inputs, opts_in, opts_out, input_mode):
-        opts_populated = [None] * len(inputs)
-        metrics = [None] * len(inputs)
-        for index, inp in enumerate(inputs):
-            Logger.info(self.Logger, f'Vw.Test: {inp}, opts_in: {json.dumps(opts_in)}, opts_out: {json.dumps(opts_out)}')
-            current_opts = input_mode(opts_in, inp)
-            salt = self.__get_salt__(inp)
-            result, populated = self.run(current_opts, opts_out, salt)
-            opts_populated[index] = populated
-            metrics[index] = result
-        return VwResult(result['loss'], opts_populated, metrics)
 
-    def __test_on_dict__(self, inputs, opts_in, opts_out, input_mode=VwInput.raw):
-        if not isinstance(inputs, list):
-            inputs = [inputs]
-        if isinstance(opts_in, list):
-            args = [(inputs, point, opts_out, input_mode) for point in opts_in]
-            return self.Pool.map(self.__test__, args)            
-        return self.__test__(inputs, opts_in, opts_out, input_mode)
+#        if not success:
+#            Logger.critical(self.Logger, f'ERROR: {json.dumps(opts)}')
+#            Logger.critical(self.Logger, raw_result)
+#            raise Exception('Unsuccesful vw execution')
+#        return parsed, populated
 
-    def __train__(self, inputs, opts_in, opts_out, input_mode=VwInput.raw):
+
+class Job:
+    def __init__(self):
+        pass
+
+    def run(self):
+        self.Handler.on_job_start(self)
+        self.Result.Status = ExecutionStatus.Running
+        for index, t in enumerate(self.Tasks):
+            self.Handler.on_task_start(self)
+            t.run()
+            self.Handler.on_task_finish(self)
+            if t.Status == ExecutionStatus.Failed:
+                self.Result.Status = ExecutionStatus.Failed
+                self.Handler.on_job_finish(self)
+                return
+            self.Result.Populated[index] = t.Populated
+            self.Result.Metrics[index] = t.Result
+            self.Result.Loss = t.Result['loss']
+        self.Result.Status = ExecutionStatus.Success
+        self.Handler.on_job_finish(self)
+        return self
+
+
+class TestJob(Job):
+    def __init__(self, path, cache, files, input_dir, opts_in, opts_out, input_mode, norun, handler):
+        self.Tasks = []
+        self.Name = VwOpts.to_string({k: opts_in[k] for k in opts_in.keys() - {'#base'}})
+        for f in files:
+            self.Tasks.append(Task(path, cache, f, input_dir, opts_in, opts_out, input_mode, None, cache.Path, norun))
+        self.Result = VwResult(len(files))
+        self.Handler = handler
+
+
+class TrainJob(Job):
+    def __init__(self, path, cache, files, input_dir, opts_in, opts_out, input_mode, norun, handler):
+        self.Tasks = []
         if '-f' not in opts_out:
             opts_out.append('-f')
-        opts_populated = [None] * len(inputs)
-        metrics = [None] * len(inputs)
-        for index, inp in enumerate(inputs):
-            Logger.info(self.Logger, f'Vw.Train: {inp}, opts_in: {json.dumps(opts_in)}, opts_out: {json.dumps(opts_out)}')
-            current_opts = input_mode(opts_in, inp)
-            salt = self.__get_salt__(inp)
-            if index > 0:
-                current_opts['-i'] = opts_populated[index - 1]['-f']
-            result, populated = self.run(current_opts, opts_out, salt)
-            opts_populated[index] = populated
-            metrics[index] = result
-        return VwResult(result['loss'], opts_populated, metrics)     
+        self.Name = VwOpts.to_string({k: opts_in[k] for k in opts_in.keys() - {'#base'}})
+        for i, f in enumerate(files):
+            model = None if i == 0 else self.Tasks[i - 1].PopulatedRelative['-f']
+            self.Tasks.append(Task(path, cache, f, input_dir, opts_in, opts_out, input_mode, model, cache.Path, norun))
+        self.Result = VwResult(len(files))
+        self.Handler = handler
 
-    def __train_on_dict__(self, inputs, opts_in, opts_out=[], input_mode=VwInput.raw):
+
+class Vw:
+    def __init__(self, path, cache, procs=multiprocessing.cpu_count(), norun=False, handler=Logger.EmptyHandler()):
+        self.Path = path
+        self.Cache = cache
+        self.Logger = self.Cache.Logger
+        self.Pool = SeqPool() if procs == 1 else MultiThreadPool(procs)
+        self.NoRun = norun
+        self.Handler = handler
+
+    def __run_impl__(self, inputs, opts_in, opts_out, input_mode, input_dir, job_type):
+        job = job_type(self.Path, self.Cache, inputs, input_dir, opts_in, opts_out, input_mode, self.NoRun, self.Handler)
+        return job.run()
+
+    def __run_on_dict__(self, inputs, opts_in, opts_out, input_mode, input_dir, job_type):
         if not isinstance(inputs, list):
             inputs = [inputs]
+        self.Handler.start(inputs, opts_in)
         if isinstance(opts_in, list):
-            args = [(inputs, point, opts_out, input_mode) for point in opts_in]
-            return self.Pool.map(self.__train__, args)            
-        return self.__train__(inputs, opts_in, opts_out, input_mode)   
+            args = [(inputs, point, opts_out, input_mode, input_dir, job_type) for point in opts_in]
+            return self.Pool.map(self.__run_impl__, args)
+        return self.__run_impl__(inputs, opts_in, opts_out, input_mode, input_dir, job_type)
 
-    def cache(self, inputs, opts):
-        if not isinstance(inputs, list):
-            inputs = [inputs]
-        return self.test(inputs, {'#cmd': VwOpts.to_cache_cmd(opts)}, ['--cache_file'])
-
-    def train(self, inputs, opts_in, opts_out=[], input_mode=VwInput.raw):
+    def __run__(self, inputs, opts_in, opts_out, input_mode, input_dir, job_type):
         if isinstance(opts_in, pd.DataFrame):
             opts_in = list(opts_in.loc[:, ~opts_in.columns.str.startswith('!')].to_dict('index').values())
-            result = zip(opts_in, self.__train_on_dict__(inputs, opts_in, opts_out, input_mode))
+            result = zip(opts_in, self.__run_on_dict__(inputs, opts_in, opts_out, input_mode, input_dir, job_type))
             result_pd = []
             for r in result:
-                results = {'!Loss': r[1].Loss, '!Populated': r[1].Populated, '!Metrics': metrics_table(r[1].Metrics), '!FinalMetrics': final_metrics_table(r[1].Metrics)}
+                results = {'!Loss': r[1].Result.Loss, '!Populated': r[1].Result.Populated,
+                           '!Metrics': metrics_table(r[1].Result.Metrics),
+                           '!FinalMetrics': final_metrics_table(r[1].Result.Metrics)}
                 result_pd.append(dict(r[0], **results))
             return pd.DataFrame(result_pd)
         else:
-            return self.__train_on_dict__(inputs, opts_in, opts_out, input_mode)
+            return self.__run_on_dict__(inputs, opts_in, opts_out, input_mode, input_dir, job_type)
 
-    def test(self, inputs, opts_in, opts_out=[], input_mode=VwInput.raw):
-        if isinstance(opts_in, pd.DataFrame):
-            opts_in = list(opts_in.loc[:, ~opts_in.columns.str.startswith('!')].to_dict('index').values())
-            result = zip(opts_in, self.__test_on_dict__(inputs, opts_in, opts_out, input_mode))
-            result_pd = []
-            for r in result:
-                results = {'!Loss': r[1].Loss, '!Populated': r[1].Populated, '!Metrics': metrics_table(r[1].Metrics), '!FinalMetrics': final_metrics_table(r[1].Metrics)}
-                result_pd.append(dict(r[0], **results))
-            return pd.DataFrame(result_pd)
-        else:
-            return self.__test_on_dict__(inputs, opts_in, opts_out, input_mode)
-        
+    def cache(self, inputs, opts, input_dir = ''):
+        return self.__run__(inputs, {'#cmd': VwOpts.to_cache_cmd(opts)}, ['--cache_file'], '-d', input_dir, TestJob)
+
+    def train(self, inputs, opts_in, opts_out=[], input_mode='-d', input_dir=''):
+        return self.__run__(inputs, opts_in, opts_out, input_mode, input_dir, TrainJob)
+
+    def test(self, inputs, opts_in, opts_out=[], input_mode='-d', input_dir=''):
+        return self.__run__(inputs, opts_in, opts_out, input_mode, input_dir, TestJob)
