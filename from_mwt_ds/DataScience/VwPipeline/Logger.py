@@ -2,7 +2,7 @@ import logging
 import time
 
 from threading import Lock
-
+from tqdm import tqdm_notebook as tqdm
 
 class ConsoleLogger:
     def __init__(self, level: str = 'INFO'):
@@ -54,32 +54,36 @@ class EmptyLogger:
     def critical(self, message: str, prefix: str = None):
         pass
 
-class WidgetHandler:
-    class Info:
-        def __init__(self):
-            self
-            
+class WidgetHandler:            
     def __init__(self):
-        self.Logger = None
-        self.Jobs = {}
+        self.Total = None
         self.Total = 0
+        self.Tasks = 0
         self.Done = 0
         self.TimePerJob = 0
 
     def start(self, inputs, opts_in):
-        pass
+        self.Jobs = {}
+        self.Tasks = len(inputs)
+        self.Total = tqdm(range(len(opts_in)), desc='Total', leave=False)    
 
     def on_job_start(self, job):
-        pass
+        self.Jobs[job.Name] = tqdm(range(self.Tasks), desc=job.Name, leave=False)
 
     def on_job_finish(self, job):
-        pass
+        self.Jobs[job.Name].close()
+        self.Jobs.pop(job.Name)
+        self.Total.update(1)
+        self.Total.refresh()
 
     def on_task_start(self, job):
         pass
 
     def on_task_finish(self, job):
-        pass 
+        self.Jobs[job.Name].update(1)
+        self.Jobs[job.Name].refresh()
+
+
 
 class EmptyHandler:
     def __init__(self):
