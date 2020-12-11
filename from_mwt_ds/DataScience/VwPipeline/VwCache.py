@@ -26,8 +26,7 @@ class VwCache:
             opts = opts + f' -# {salt}'
         args_hash = VwOpts.string_hash(opts)
         result = self.__get_path__(f'cache{opt_out}', args_hash)
-        Logger.debug(self.Logger,
-                     f'Generating path for opts_in: {VwOpts.to_string(opts_in)}, opt_out: {opt_out}. Result: {result}')
+        self.Logger.debug(f'Generating path for opts_in: {VwOpts.to_string(opts_in)}, opt_out: {opt_out}. Result: {result}')
         return result
 
     def get_path(self, opts_in: dict, opt_out: str = None, salt: str = None) -> str:

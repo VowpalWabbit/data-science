@@ -135,7 +135,7 @@ class Task:
 
     def __run__(self):
         command = f'{self.Path} {VwOpts.to_string(self.Opts)}'
-        Logger.debug(self.Logger, f'Executing: {command}')
+        self.Logger.debug(f'Executing: {command}')
         process = subprocess.Popen(
             command.split(),
             universal_newlines=True,
@@ -151,16 +151,16 @@ class Task:
         not_exist = next((p for p in result_files if not os.path.exists(p)), None)
 
         if not_exist:
-            Logger.debug(self.Logger, f'{not_exist} had not been found.')
+            self.Logger.debug(f'{not_exist} had not been found.')
             if self.NoRun:
                 raise Exception('Result is not found, and execution is deprecated')
 
             result = self.__run__()
             __save__(result, self.MetricsPath)
         else:
-            Logger.debug(self.Logger, f'Result of vw execution is found: {VwOpts.to_string(self.Opts)}')
+            self.Logger.debug(f'Result of vw execution is found: {VwOpts.to_string(self.Opts)}')
         raw_result = __load__(self.MetricsPath)
-        Logger.debug(self.Logger, raw_result)
+        self.Logger.debug(raw_result)
         self.Result, success = __parse_vw_output__(raw_result)
         self.Status = ExecutionStatus.Success if success else ExecutionStatus.Failed
 
@@ -177,30 +177,36 @@ class Job:
         pass
 
     def run(self):
+        self.Handler.on_job_start(self)
         self.Result.Status = ExecutionStatus.Running
         for index, t in enumerate(self.Tasks):
+            self.Handler.on_task_start(self)
             t.run()
+            self.Handler.on_task_finish(self)
             if t.Status == ExecutionStatus.Failed:
                 self.Result.Status = ExecutionStatus.Failed
+                self.Handler.on_job_finish(self)
                 return
             self.Result.Populated[index] = t.Populated
             self.Result.Metrics[index] = t.Result
             self.Result.Loss = t.Result['loss']
         self.Result.Status = ExecutionStatus.Success
+        self.Handler.on_job_finish(self)
         return self
 
 
 class TestJob(Job):
-    def __init__(self, path, cache, files, input_dir, opts_in, opts_out, input_mode, norun):
+    def __init__(self, path, cache, files, input_dir, opts_in, opts_out, input_mode, norun, handler):
         self.Tasks = []
         self.Name = VwOpts.to_string({k: opts_in[k] for k in opts_in.keys() - {'#base'}})
         for f in files:
             self.Tasks.append(Task(path, cache, f, input_dir, opts_in, opts_out, input_mode, None, cache.Path, norun))
         self.Result = VwResult(len(files))
+        self.Handler = handler
 
 
 class TrainJob(Job):
-    def __init__(self, path, cache, files, input_dir, opts_in, opts_out, input_mode, norun):
+    def __init__(self, path, cache, files, input_dir, opts_in, opts_out, input_mode, norun, handler):
         self.Tasks = []
         if '-f' not in opts_out:
             opts_out.append('-f')
@@ -209,23 +215,26 @@ class TrainJob(Job):
             model = None if i == 0 else self.Tasks[i - 1].PopulatedRelative['-f']
             self.Tasks.append(Task(path, cache, f, input_dir, opts_in, opts_out, input_mode, model, cache.Path, norun))
         self.Result = VwResult(len(files))
+        self.Handler = handler
 
 
 class Vw:
-    def __init__(self, path, cache, procs=multiprocessing.cpu_count(), norun=False):
+    def __init__(self, path, cache, procs=multiprocessing.cpu_count(), norun=False, handler=Logger.EmptyHandler()):
         self.Path = path
         self.Cache = cache
         self.Logger = self.Cache.Logger
         self.Pool = SeqPool() if procs == 1 else MultiThreadPool(procs)
         self.NoRun = norun
+        self.Handler = handler
 
     def __run_impl__(self, inputs, opts_in, opts_out, input_mode, input_dir, job_type):
-        job = job_type(self.Path, self.Cache, inputs, input_dir, opts_in, opts_out, input_mode, self.NoRun)
+        job = job_type(self.Path, self.Cache, inputs, input_dir, opts_in, opts_out, input_mode, self.NoRun, self.Handler)
         return job.run()
 
     def __run_on_dict__(self, inputs, opts_in, opts_out, input_mode, input_dir, job_type):
         if not isinstance(inputs, list):
             inputs = [inputs]
+        self.Handler.start(inputs, opts_in)
         if isinstance(opts_in, list):
             args = [(inputs, point, opts_out, input_mode, input_dir, job_type) for point in opts_in]
             return self.Pool.map(self.__run_impl__, args)

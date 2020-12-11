@@ -35,27 +35,67 @@ class ConsoleLogger:
         print(prefix + message)
         self.lock.release()
 
+class EmptyLogger:
+    def __init__(self):
+        pass
 
-def debug(logger, message: str):
-    if logger:
-        logger.debug(message)
+    def debug(self, message: str, prefix: str = None):
+        pass
 
+    def info(self, message: str, prefix: str = None):
+        pass
 
-def info(logger, message: str):
-    if logger:
-        logger.info(message)
+    def warning(self, message: str, prefix: str = None):
+        pass
 
+    def error(self, message: str, prefix: str = None):
+        pass
 
-def warning(logger, message: str):
-    if logger:
-        logger.warning(message)
+    def critical(self, message: str, prefix: str = None):
+        pass
 
+class WidgetHandler:
+    class Info:
+        def __init__(self):
+            self
+            
+    def __init__(self):
+        self.Logger = None
+        self.Jobs = {}
+        self.Total = 0
+        self.Done = 0
+        self.TimePerJob = 0
 
-def error(logger, message: str):
-    if logger:
-        logger.error(message)
+    def start(self, inputs, opts_in):
+        pass
 
+    def on_job_start(self, job):
+        pass
 
-def critical(logger, message: str):
-    if logger:
-        logger.critical(message)
+    def on_job_finish(self, job):
+        pass
+
+    def on_task_start(self, job):
+        pass
+
+    def on_task_finish(self, job):
+        pass 
+
+class EmptyHandler:
+    def __init__(self):
+        pass
+
+    def start(self, inputs, opts_in):
+        pass
+
+    def on_job_start(self, job):
+        pass
+
+    def on_job_finish(self, job):
+        pass
+
+    def on_task_start(self, job):
+        pass
+
+    def on_task_finish(self, job):
+        pass 
