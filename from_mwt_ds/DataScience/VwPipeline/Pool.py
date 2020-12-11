@@ -7,6 +7,9 @@ def __execute__(task_index_input):
 
 
 class SeqPool:
+    def __init__(self):
+        self.Procs = 1
+        
     def map(self, task, inputs):
         result = []
         for i in inputs:

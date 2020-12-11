@@ -146,12 +146,13 @@ class Task:
         error = process.communicate()[1]
         return error
 
-    def run(self):
+    def run(self, reset):
         result_files = list(self.Populated.values()) + [self.MetricsPath]
         not_exist = next((p for p in result_files if not os.path.exists(p)), None)
 
-        if not_exist:
-            self.Logger.debug(f'{not_exist} had not been found.')
+        if reset or not_exist:
+            if not_exist:
+                self.Logger.debug(f'{not_exist} had not been found.')
             if self.NoRun:
                 raise Exception('Result is not found, and execution is deprecated')
 
@@ -176,12 +177,12 @@ class Job:
     def __init__(self):
         pass
 
-    def run(self):
+    def run(self, reset):
         self.Handler.on_job_start(self)
         self.Result.Status = ExecutionStatus.Running
         for index, t in enumerate(self.Tasks):
             self.Handler.on_task_start(self)
-            t.run()
+            t.run(reset)
             self.Handler.on_task_finish(self)
             if t.Status == ExecutionStatus.Failed:
                 self.Result.Status = ExecutionStatus.Failed
@@ -219,17 +220,22 @@ class TrainJob(Job):
 
 
 class Vw:
-    def __init__(self, path, cache, procs=multiprocessing.cpu_count(), norun=False, handler=Logger.EmptyHandler()):
+    def __init__(self, path, cache, procs=multiprocessing.cpu_count(), norun=False, reset=False, handler=Logger.EmptyHandler()):
         self.Path = path
         self.Cache = cache
         self.Logger = self.Cache.Logger
         self.Pool = SeqPool() if procs == 1 else MultiThreadPool(procs)
         self.NoRun = norun
         self.Handler = handler
+        self.Reset = reset
+
+    def __with__(self, path=None, cache=None, procs=None, norun=None, reset=None, handler=None):
+        return Vw(path or self.Path, cache or self.Cache, procs or self.Pool.Procs, 
+            norun or self.NoRun, reset or self.Reset, handler or self.Handler)
 
     def __run_impl__(self, inputs, opts_in, opts_out, input_mode, input_dir, job_type):
         job = job_type(self.Path, self.Cache, inputs, input_dir, opts_in, opts_out, input_mode, self.NoRun, self.Handler)
-        return job.run()
+        return job.run(self.Reset)
 
     def __run_on_dict__(self, inputs, opts_in, opts_out, input_mode, input_dir, job_type):
         if not isinstance(inputs, list):
