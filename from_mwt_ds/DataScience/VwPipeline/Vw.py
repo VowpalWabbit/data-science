@@ -258,7 +258,7 @@ class Vw:
                 result_pd.append(dict(r[0], **results))
             return pd.DataFrame(result_pd)
         else:
-            return self.__run_on_dict__(inputs, opts_in, opts_out, input_mode, input_dir, job_type)
+            return [r.Result for r in self.__run_on_dict__(inputs, opts_in, opts_out, input_mode, input_dir, job_type)]
 
     def cache(self, inputs, opts, input_dir = ''):
         return self.__run__(inputs, {'#cmd': VwOpts.to_cache_cmd(opts)}, ['--cache_file'], '-d', input_dir, TestJob)
