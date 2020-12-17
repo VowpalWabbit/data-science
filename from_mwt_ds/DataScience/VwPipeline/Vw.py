@@ -94,8 +94,8 @@ class ExecutionStatus(enum.Enum):
 class VwResult:
     def __init__(self, count):
         self.Loss = None
-        self.Populated = [None] * count
-        self.Metrics = [None] * count
+        self.Populated = []
+        self.Metrics = []
         self.Status = ExecutionStatus.NotStarted
 
 
@@ -162,14 +162,16 @@ class Task:
         self.Logger.debug(raw_result)
         self.Result, success = __parse_vw_output__(raw_result)
         self.Status = ExecutionStatus.Success if success else ExecutionStatus.Failed
-
-
 #        if not success:
 #            Logger.critical(self.Logger, f'ERROR: {json.dumps(opts)}')
 #            Logger.critical(self.Logger, raw_result)
 #            raise Exception('Unsuccesful vw execution')
 #        return parsed, populated
 
+
+
+    def stdout(self):
+        return open(self.MetricsPath, 'r').readlines()
 
 class Job:
     def __init__(self, path, cache, opts_in, opts_out, input_mode):
@@ -179,6 +181,7 @@ class Job:
         self.OptsIn = opts_in
         self.OptsOut = opts_out
         self.InputMode = input_mode
+        self.Failed = None
 
     def run(self, reset):
         self.Handler.on_job_start(self)
@@ -190,9 +193,10 @@ class Job:
             if t.Status == ExecutionStatus.Failed:
                 self.Result.Status = ExecutionStatus.Failed
                 self.Handler.on_job_finish(self)
-                return
-            self.Result.Populated[index] = t.Populated
-            self.Result.Metrics[index] = t.Result
+                self.Failed = t
+                return self
+            self.Result.Populated.append(t.Populated)
+            self.Result.Metrics.append(t.Result)
             self.Result.Loss = t.Result['loss']
         self.Result.Status = ExecutionStatus.Success
         self.Handler.on_job_finish(self)
@@ -254,13 +258,19 @@ class Vw:
     def __run__(self, inputs, opts_in, opts_out, input_mode, input_dir, job_type):
         if isinstance(opts_in, pd.DataFrame):
             opts_in = list(opts_in.loc[:, ~opts_in.columns.str.startswith('!')].to_dict('index').values())
-            result = zip(opts_in, self.__run_on_dict__(inputs, opts_in, opts_out, input_mode, input_dir, job_type))
+            result = self.__run_on_dict__(inputs, opts_in, opts_out, input_mode, input_dir, job_type)
             result_pd = []
             for r in result:
-                results = {'!Loss': r[1].Result.Loss, '!Populated': r[1].Result.Populated,
-                           '!Metrics': metrics_table(r[1].Result.Metrics),
-                           '!FinalMetrics': final_metrics_table(r[1].Result.Metrics)}
-                result_pd.append(dict(r[0], **results))
+                failed = r.Failed if r else None
+                loss = r.Result.Loss if not failed else None
+                populated = r.Result.Populated if r.Result else None
+                metrics = metrics_table(r.Result.Metrics) if r.Result.Metrics else None
+                final_metrics = final_metrics_table(r.Result.Metrics) if r.Result.Metrics else None
+                results = {'!Loss': loss, '!Populated': populated,
+                           '!Metrics': metrics,
+                           '!FinalMetrics': final_metrics,
+                           '!Failed': failed}
+                result_pd.append(dict(r.OptsIn, **results))
             return pd.DataFrame(result_pd)
         else:
             return [r.Result for r in self.__run_on_dict__(inputs, opts_in, opts_out, input_mode, input_dir, job_type)]
