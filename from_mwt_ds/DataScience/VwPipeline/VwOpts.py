@@ -31,7 +31,7 @@ def product(*dimensions: list) -> list:
 
 
 def dimension(name: str, values: list) -> list:
-    return list(map(lambda v: dict([(name, str(v))]), values))
+    return [{name: v} for v in values]
 
 
 def to_cache_cmd(opts: dict) -> str:

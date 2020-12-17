@@ -113,28 +113,29 @@ class Task:
         self.ModelFolder = model_folder
         self.NoRun = norun
         self.Result = {}
-        self.__prepare_opts__(cache)
+        self.Args = self.__prepare_args__(cache)
 
-    def __prepare_opts__(self, cache):
+    def __prepare_args__(self, cache):
         salt = None
-        self.Opts = self.OptsIn.copy()
-        self.Opts[self.InputMode] = self.File
+        opts = self.OptsIn.copy()
+        opts[self.InputMode] = self.File
         if self.Model:
-            self.Opts['-i'] = self.Model
+            opts['-i'] = self.Model
 
-        self.PopulatedRelative = {o: cache.get_rel_path(self.Opts, o, salt) for o in self.OptsOut}
-        self.Populated = {o: cache.get_path(self.Opts, o, salt) for o in self.OptsOut}
+        self.PopulatedRelative = {o: cache.get_rel_path(opts, o, salt) for o in self.OptsOut}
+        self.Populated = {o: cache.get_path(opts, o, salt) for o in self.OptsOut}
 
-        self.MetricsPath = cache.get_path(self.Opts, salt)
+        self.MetricsPath = cache.get_path(opts, salt)
 
         if self.Model:
-            self.Opts['-i'] = os.path.join(self.ModelFolder, self.Model)
+            opts['-i'] = os.path.join(self.ModelFolder, self.Model)
             
-        self.Opts[self.InputMode] = os.path.join(self.Folder, self.File)
-        self.Opts = dict(self.Opts, **self.Populated)
+        opts[self.InputMode] = os.path.join(self.Folder, self.File)
+        opts = dict(opts, **self.Populated)
+        return VwOpts.to_string(opts)
 
     def __run__(self):
-        command = f'{self.Path} {VwOpts.to_string(self.Opts)}'
+        command = f'{self.Path} {self.Args}'
         self.Logger.debug(f'Executing: {command}')
         process = subprocess.Popen(
             command.split(),
@@ -159,7 +160,7 @@ class Task:
             result = self.__run__()
             __save__(result, self.MetricsPath)
         else:
-            self.Logger.debug(f'Result of vw execution is found: {VwOpts.to_string(self.Opts)}')
+            self.Logger.debug(f'Result of vw execution is found: {self.Args}')
         raw_result = __load__(self.MetricsPath)
         self.Logger.debug(raw_result)
         self.Result, success = __parse_vw_output__(raw_result)
