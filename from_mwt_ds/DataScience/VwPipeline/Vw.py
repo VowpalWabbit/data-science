@@ -100,42 +100,39 @@ class VwResult:
 
 
 class Task:
-    def __init__(self, path, cache, file, folder, opts_in, opts_out, input_mode, model, model_folder = '', norun=False):
-        self.Path = path
+    def __init__(self, job, file, folder, model, model_folder = '', norun=False):
+        self.Job = job
         self.File = file
         self.Folder = folder
-        self.Logger = cache.Logger
+        self.Logger = self.Job.Logger
         self.Status = ExecutionStatus.NotStarted
-        self.OptsIn = opts_in
-        self.OptsOut = opts_out
-        self.InputMode = input_mode
         self.Model = model
         self.ModelFolder = model_folder
         self.NoRun = norun
         self.Result = {}
-        self.Args = self.__prepare_args__(cache)
+        self.Args = self.__prepare_args__(self.Job.Cache)
 
     def __prepare_args__(self, cache):
         salt = None
-        opts = self.OptsIn.copy()
-        opts[self.InputMode] = self.File
+        opts = self.Job.OptsIn.copy()
+        opts[self.Job.InputMode] = self.File
         if self.Model:
             opts['-i'] = self.Model
 
-        self.PopulatedRelative = {o: cache.get_rel_path(opts, o, salt) for o in self.OptsOut}
-        self.Populated = {o: cache.get_path(opts, o, salt) for o in self.OptsOut}
+        self.PopulatedRelative = {o: cache.get_rel_path(opts, o, salt) for o in self.Job.OptsOut}
+        self.Populated = {o: cache.get_path(opts, o, salt) for o in self.Job.OptsOut}
 
         self.MetricsPath = cache.get_path(opts, salt)
 
         if self.Model:
             opts['-i'] = os.path.join(self.ModelFolder, self.Model)
             
-        opts[self.InputMode] = os.path.join(self.Folder, self.File)
+        opts[self.Job.InputMode] = os.path.join(self.Folder, self.File)
         opts = dict(opts, **self.Populated)
         return VwOpts.to_string(opts)
 
     def __run__(self):
-        command = f'{self.Path} {self.Args}'
+        command = f'{self.Job.Path} {self.Args}'
         self.Logger.debug(f'Executing: {command}')
         process = subprocess.Popen(
             command.split(),
@@ -175,8 +172,13 @@ class Task:
 
 
 class Job:
-    def __init__(self):
-        pass
+    def __init__(self, path, cache, opts_in, opts_out, input_mode):
+        self.Path = path
+        self.Cache = cache
+        self.Logger = cache.Logger
+        self.OptsIn = opts_in
+        self.OptsOut = opts_out
+        self.InputMode = input_mode
 
     def run(self, reset):
         self.Handler.on_job_start(self)
@@ -199,23 +201,25 @@ class Job:
 
 class TestJob(Job):
     def __init__(self, path, cache, files, input_dir, opts_in, opts_out, input_mode, norun, handler):
+        super().__init__(path, cache, opts_in, opts_out, input_mode)
         self.Tasks = []
         self.Name = VwOpts.to_string({k: opts_in[k] for k in opts_in.keys() - {'#base'}})
         for f in files:
-            self.Tasks.append(Task(path, cache, f, input_dir, opts_in, opts_out, input_mode, None, cache.Path, norun))
+            self.Tasks.append(Task(self, f, input_dir, None, cache.Path, norun))
         self.Result = VwResult(len(files))
         self.Handler = handler
 
 
 class TrainJob(Job):
     def __init__(self, path, cache, files, input_dir, opts_in, opts_out, input_mode, norun, handler):
+        super().__init__(path, cache, opts_in, opts_out, input_mode)
         self.Tasks = []
         if '-f' not in opts_out:
             opts_out.append('-f')
         self.Name = VwOpts.to_string({k: opts_in[k] for k in opts_in.keys() - {'#base'}})
         for i, f in enumerate(files):
             model = None if i == 0 else self.Tasks[i - 1].PopulatedRelative['-f']
-            self.Tasks.append(Task(path, cache, f, input_dir, opts_in, opts_out, input_mode, model, cache.Path, norun))
+            self.Tasks.append(Task(self, f, input_dir, model, cache.Path, norun))
         self.Result = VwResult(len(files))
         self.Handler = handler
 
