@@ -261,15 +261,14 @@ class Vw:
             result = self.__run_on_dict__(inputs, opts_in, opts_out, input_mode, input_dir, job_type)
             result_pd = []
             for r in result:
-                failed = r.Failed if r else None
-                loss = r.Result.Loss if not failed else None
+                loss = r.Result.Loss if r.Failed==None else None
                 populated = r.Result.Populated if r.Result else None
                 metrics = metrics_table(r.Result.Metrics) if r.Result.Metrics else None
                 final_metrics = final_metrics_table(r.Result.Metrics) if r.Result.Metrics else None
                 results = {'!Loss': loss, '!Populated': populated,
                            '!Metrics': metrics,
                            '!FinalMetrics': final_metrics,
-                           '!Failed': failed}
+                           '!Job': r}
                 result_pd.append(dict(r.OptsIn, **results))
             return pd.DataFrame(result_pd)
         else:
