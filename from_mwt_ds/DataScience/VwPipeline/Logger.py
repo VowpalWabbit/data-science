@@ -62,11 +62,14 @@ class WidgetHandler:
         self.TimePerJob = 0
         self.Leave = leave
 
-    def start(self, inputs, opts_in):
+    def on_start(self, inputs, opts_in):
         from tqdm import tqdm_notebook as tqdm
         self.Jobs = {}
         self.Tasks = len(inputs)
-        self.Total = tqdm(range(len(opts_in)), desc='Total', leave=self.Leave)    
+        self.Total = tqdm(range(len(opts_in)), desc='Total', leave=self.Leave)
+
+    def on_finish(self):
+        self.Total.close()    
 
     def on_job_start(self, job):
         from tqdm import tqdm_notebook as tqdm

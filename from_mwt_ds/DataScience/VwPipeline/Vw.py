@@ -174,7 +174,7 @@ class Task:
         return open(self.MetricsPath, 'r').readlines()
 
 class Job:
-    def __init__(self, path, cache, opts_in, opts_out, input_mode):
+    def __init__(self, path, cache, opts_in, opts_out, input_mode, handler):
         self.Path = path
         self.Cache = cache
         self.Logger = cache.Logger
@@ -182,6 +182,7 @@ class Job:
         self.OptsOut = opts_out
         self.InputMode = input_mode
         self.Failed = None
+        self.Handler = handler
 
     def run(self, reset):
         self.Handler.on_job_start(self)
@@ -205,18 +206,17 @@ class Job:
 
 class TestJob(Job):
     def __init__(self, path, cache, files, input_dir, opts_in, opts_out, input_mode, norun, handler):
-        super().__init__(path, cache, opts_in, opts_out, input_mode)
+        super().__init__(path, cache, opts_in, opts_out, input_mode, handler)
         self.Tasks = []
         self.Name = VwOpts.to_string({k: opts_in[k] for k in opts_in.keys() - {'#base'}})
         for f in files:
             self.Tasks.append(Task(self, f, input_dir, None, cache.Path, norun))
         self.Result = VwResult(len(files))
-        self.Handler = handler
 
 
 class TrainJob(Job):
     def __init__(self, path, cache, files, input_dir, opts_in, opts_out, input_mode, norun, handler):
-        super().__init__(path, cache, opts_in, opts_out, input_mode)
+        super().__init__(path, cache, opts_in, opts_out, input_mode, handler)
         self.Tasks = []
         if '-f' not in opts_out:
             opts_out.append('-f')
@@ -225,7 +225,6 @@ class TrainJob(Job):
             model = None if i == 0 else self.Tasks[i - 1].PopulatedRelative['-f']
             self.Tasks.append(Task(self, f, input_dir, model, cache.Path, norun))
         self.Result = VwResult(len(files))
-        self.Handler = handler
 
 
 class Vw:
@@ -249,11 +248,14 @@ class Vw:
     def __run_on_dict__(self, inputs, opts_in, opts_out, input_mode, input_dir, job_type):
         if not isinstance(inputs, list):
             inputs = [inputs]
-        self.Handler.start(inputs, opts_in)
+        self.Handler.on_start(inputs, opts_in)
         if isinstance(opts_in, list):
             args = [(inputs, point, opts_out, input_mode, input_dir, job_type) for point in opts_in]
-            return self.Pool.map(self.__run_impl__, args)
-        return self.__run_impl__(inputs, opts_in, opts_out, input_mode, input_dir, job_type)
+            result = self.Pool.map(self.__run_impl__, args)
+        else:
+            result = self.__run_impl__(inputs, opts_in, opts_out, input_mode, input_dir, job_type)
+        self.Handler.on_finish()
+        return result        
 
     def __run__(self, inputs, opts_in, opts_out, input_mode, input_dir, job_type):
         if isinstance(opts_in, pd.DataFrame):
