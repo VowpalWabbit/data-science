@@ -94,7 +94,10 @@ class EmptyHandler:
     def __init__(self):
         pass
 
-    def start(self, inputs, opts_in):
+    def on_start(self, inputs, opts_in):
+        pass
+
+    def on_finish(self):
         pass
 
     def on_job_start(self, job):
