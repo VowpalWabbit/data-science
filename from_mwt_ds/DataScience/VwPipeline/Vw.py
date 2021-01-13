@@ -107,9 +107,12 @@ class Task:
         self.Args = self.__prepare_args__(self.Job.Cache)
 
     def __prepare_args__(self, cache):
-        salt = None
         opts = self.Job.OptsIn.copy()
         opts[self.Job.InputMode] = self.File
+        
+        file_full = os.path.join(self.Folder, self.File)
+
+        salt = os.path.getsize(file_full)
         if self.Model:
             opts['-i'] = self.Model
 
@@ -121,7 +124,7 @@ class Task:
         if self.Model:
             opts['-i'] = os.path.join(self.ModelFolder, self.Model)
             
-        opts[self.Job.InputMode] = os.path.join(self.Folder, self.File)
+        opts[self.Job.InputMode] = file_full
         opts = dict(opts, **self.Populated)
         return VwOpts.to_string(opts)
 
