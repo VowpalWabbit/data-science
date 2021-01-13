@@ -28,36 +28,36 @@ def __extract_metrics__(out_lines):
     average_loss_dict = {}
     since_last_dict = {}
     metrics = {}
-    record = False
-    for line in out_lines:
-        line = line.strip()
-        if record:
-            if line == '':
-                record = False
-            else:
-                counter_line = line.split()
-                count, average_loss, since_last = counter_line[2], counter_line[0], counter_line[1]
-                average_loss_dict[count] = average_loss
-                since_last_dict[count] = since_last
-        elif line.startswith('loss'):
-            fields = line.split()
-            if fields[0] == 'loss' and fields[1] == 'last' and fields[2] == 'counter':
-                record = True
-        elif '=' in line:
-            key_value = [p.strip() for p in line.split('=')]
-            metrics[key_value[0]] = key_value[1]
-    return average_loss_dict, since_last_dict, metrics
+    try:
+        record = False
+        for line in out_lines:
+            line = line.strip()
+            if record:
+                if line == '':
+                    record = False
+                else:
+                    counter_line = line.split()
+                    count, average_loss, since_last = counter_line[2], counter_line[0], counter_line[1]
+                    average_loss_dict[count] = average_loss
+                    since_last_dict[count] = since_last
+            elif line.startswith('loss'):
+                fields = line.split()
+                if fields[0] == 'loss' and fields[1] == 'last' and fields[2] == 'counter':
+                    record = True
+            elif '=' in line:
+                key_value = [p.strip() for p in line.split('=')]
+                metrics[key_value[0]] = key_value[1]
+    finally:
+        return average_loss_dict, since_last_dict, metrics
 
 
-def __parse_vw_output__(txt):
-    average_loss, since_last, metrics = __extract_metrics__(txt.split('\n'))
+def __parse_vw_output__(lines):
+    average_loss, since_last, metrics = __extract_metrics__(lines)
     loss = None
     if 'average loss' in metrics:
         # Include the final loss as the primary metric
         loss = __safe_to_float__(metrics['average loss'], None)
-
-    success = loss is not None
-    return {'loss_per_example': average_loss, 'since_last': since_last, 'metrics': metrics, 'loss': loss}, success
+    return {'loss_per_example': average_loss, 'since_last': since_last, 'metrics': metrics}, loss
 
 
 def __metrics_table__(metrics, name):
@@ -114,9 +114,9 @@ class Task:
             opts['-i'] = self.Model
 
         self.PopulatedRelative = {o: cache.get_rel_path(opts, o, salt) for o in self.Job.OptsOut}
-        self.Populated = {o: cache.get_path(opts, o, salt) for o in self.Job.OptsOut}
+        self.Populated = {o: cache.get_path(opts, o, salt, self.Logger) for o in self.Job.OptsOut}
 
-        self.StdOutPath = cache.get_path(opts, salt)
+        self.StdOutPath = cache.get_path(opts, salt, self.Logger)
 
         if self.Model:
             opts['-i'] = os.path.join(self.ModelFolder, self.Model)
@@ -152,26 +152,17 @@ class Task:
             __save__(result, self.StdOutPath)
         else:
             self.Logger.debug(f'Result of vw execution is found: {self.Args}')
-        raw_result = __load__(self.StdOutPath)
-        self.Logger.debug(raw_result)
-        self.Result, success = __parse_vw_output__(raw_result)
-        self.Status = ExecutionStatus.Success if success else ExecutionStatus.Failed
-#        if not success:
-#            Logger.critical(self.Logger, f'ERROR: {json.dumps(opts)}')
-#            Logger.critical(self.Logger, raw_result)
-#            raise Exception('Unsuccesful vw execution')
-#        return parsed, populated
-
-
+        self.Result, self.Loss = __parse_vw_output__(self.stdout())
+        self.Status = ExecutionStatus.Success if self.Loss else ExecutionStatus.Failed
 
     def stdout(self):
         return open(self.StdOutPath, 'r').readlines()
 
 class Job:
-    def __init__(self, path, cache, opts_in, opts_out, input_mode, handler):
+    def __init__(self, path, cache, opts_in, opts_out, input_mode, handler, logger):
         self.Path = path
         self.Cache = cache
-        self.Logger = cache.Logger
+        self.Logger = logger
         self.OptsIn = opts_in
         self.OptsOut = opts_out
         self.InputMode = input_mode
@@ -187,36 +178,35 @@ class Job:
         self.Handler.on_job_start(self)
         self.Status = ExecutionStatus.Running
         for t in self.Tasks:
-            self.Handler.on_task_start(self)
+            self.Handler.on_task_start(self, t)
             t.run(reset)
-            self.Handler.on_task_finish(self)
+            self.Handler.on_task_finish(self, t)
             if t.Status == ExecutionStatus.Failed:
-                self.Status = ExecutionStatus.Failed
-                self.Handler.on_job_finish(self)
                 self.Failed = t
-                return self
+                break
             for p in t.Populated:
                 self.Populated[p].append(t.Populated[p])
             self.Metrics.append(t.Result)
-            self.Loss = t.Result['loss']
-        self.Status = ExecutionStatus.Success
+
+        self.Status = self.Failed.Status if self.Failed else ExecutionStatus.Success
+        self.Loss = self.Tasks[-1].Loss if len(self.Tasks) > 0 and self.Status == ExecutionStatus.Success else None
         self.Handler.on_job_finish(self)
         return self
 
 
 class TestJob(Job):
-    def __init__(self, path, cache, files, input_dir, opts_in, opts_out, input_mode, norun, handler):
-        super().__init__(path, cache, opts_in, opts_out, input_mode, handler)
+    def __init__(self, path, cache, files, input_dir, opts_in, opts_out, input_mode, norun, handler, logger):
+        super().__init__(path, cache, opts_in, opts_out, input_mode, handler, logger)
         self.Name = VwOpts.to_string({k: opts_in[k] for k in opts_in.keys() - {'#base'}})
         for f in files:
             self.Tasks.append(Task(self, f, input_dir, None, cache.Path, norun))
 
 
 class TrainJob(Job):
-    def __init__(self, path, cache, files, input_dir, opts_in, opts_out, input_mode, norun, handler):
+    def __init__(self, path, cache, files, input_dir, opts_in, opts_out, input_mode, norun, handler, logger):
         if '-f' not in opts_out:
             opts_out.append('-f')
-        super().__init__(path, cache, opts_in, opts_out, input_mode, handler)
+        super().__init__(path, cache, opts_in, opts_out, input_mode, handler, logger)
         self.Name = VwOpts.to_string({k: opts_in[k] for k in opts_in.keys() - {'#base'}})
         for i, f in enumerate(files):
             model = None if i == 0 else self.Tasks[i - 1].PopulatedRelative['-f']
@@ -224,10 +214,10 @@ class TrainJob(Job):
 
 
 class Vw:
-    def __init__(self, path, cache, procs=multiprocessing.cpu_count(), norun=False, reset=False, handler=Logger.EmptyHandler()):
+    def __init__(self, path, cache, procs=multiprocessing.cpu_count(), norun=False, reset=False, handler=Logger.EmptyHandler(), logger=Logger.EmptyLogger()):
         self.Path = path
         self.Cache = cache
-        self.Logger = self.Cache.Logger
+        self.Logger = logger
         self.Pool = SeqPool() if procs == 1 else MultiThreadPool(procs)
         self.NoRun = norun
         self.Handler = handler
@@ -238,7 +228,7 @@ class Vw:
             norun or self.NoRun, reset or self.Reset, handler or self.Handler)
 
     def __run_impl__(self, inputs, opts_in, opts_out, input_mode, input_dir, job_type):
-        job = job_type(self.Path, self.Cache, inputs, input_dir, opts_in, opts_out, input_mode, self.NoRun, self.Handler)
+        job = job_type(self.Path, self.Cache, inputs, input_dir, opts_in, opts_out, input_mode, self.NoRun, self.Handler, self.Logger)
         return job.run(self.Reset)
 
     def __run_on_dict__(self, inputs, opts_in, opts_out, input_mode, input_dir, job_type):

@@ -4,9 +4,8 @@ from VwPipeline import Logger
 
 
 class VwCache:
-    def __init__(self, path: str, logger=None):
+    def __init__(self, path: str):
         self.Path = path
-        self.Logger = logger
         os.makedirs(self.Path, exist_ok=True)
 
     @staticmethod
@@ -19,15 +18,15 @@ class VwCache:
         os.makedirs(folder_name, exist_ok=True)
         return os.path.join(context, VwCache.__file_name__(args_hash))
 
-    def get_rel_path(self, opts_in: dict, opt_out: str = None, salt: str = None) -> str:
+    def get_rel_path(self, opts_in: dict, opt_out: str = None, salt: str = None, logger = Logger.EmptyLogger()) -> str:
         from VwPipeline import VwOpts
         opts = VwOpts.to_string(opts_in)
         if salt:
             opts = opts + f' -# {salt}'
         args_hash = VwOpts.string_hash(opts)
         result = self.__get_path__(f'cache{opt_out}', args_hash)
-        self.Logger.debug(f'Generating path for opts_in: {VwOpts.to_string(opts_in)}, opt_out: {opt_out}. Result: {result}')
+        logger.debug(f'Generating path for opts_in: {VwOpts.to_string(opts_in)}, opt_out: {opt_out}. Result: {result}')
         return result
 
-    def get_path(self, opts_in: dict, opt_out: str = None, salt: str = None) -> str:
-        return os.path.join(self.Path, self.get_rel_path(opts_in, opt_out, salt))
+    def get_path(self, opts_in: dict, opt_out: str = None, salt: str = None, logger = Logger.EmptyLogger()) -> str:
+        return os.path.join(self.Path, self.get_rel_path(opts_in, opt_out, salt, logger))

@@ -81,10 +81,10 @@ class WidgetHandler:
         self.Total.update(1)
         self.Total.refresh()
 
-    def on_task_start(self, job):
+    def on_task_start(self, job, task):
         pass
 
-    def on_task_finish(self, job):
+    def on_task_finish(self, job, task):
         self.Jobs[job.Name].update(1)
         self.Jobs[job.Name].refresh()
 
