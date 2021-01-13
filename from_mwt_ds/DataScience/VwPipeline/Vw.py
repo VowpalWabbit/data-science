@@ -274,10 +274,15 @@ class Vw:
                 result_pd.append(dict(r.OptsIn, **results))
             return pd.DataFrame(result_pd)
         else:
-            return [r.Result for r in self.__run_on_dict__(inputs, opts_in, opts_out, input_mode, input_dir, job_type)]
+            results = self.__run_on_dict__(inputs, opts_in, opts_out, input_mode, input_dir, job_type)
+            return [r.Result for r in results] if isinstance(results, list) else results.Result
 
     def cache(self, inputs, opts, input_dir = ''):
-        return self.__run__(inputs, {'#cmd': VwOpts.to_cache_cmd(opts)}, ['--cache_file'], '-d', input_dir, TestJob)
+        if isinstance(opts, list):
+            cache_opts = [{'#cmd': o_dedup} for o_dedup in set([VwOpts.to_cache_cmd(o) for o in opts])]
+        else:
+            cache_opts = {'#cmd': VwOpts.to_cache_cmd(opts)}
+        return self.__run__(inputs, cache_opts, ['--cache_file'], '-d', input_dir, TestJob)
 
     def train(self, inputs, opts_in, opts_out=[], input_mode='-d', input_dir=''):
         return self.__run__(inputs, opts_in, opts_out, input_mode, input_dir, TrainJob)
