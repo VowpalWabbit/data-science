@@ -167,6 +167,7 @@ class Job:
         self.Cache = cache
         self.Logger = logger
         self.OptsIn = opts_in
+        self.Name = VwOpts.to_string({k: opts_in[k] for k in opts_in.keys() - {'#base'}})
         self.OptsOut = opts_out
         self.InputMode = input_mode
         self.Failed = None
@@ -200,7 +201,6 @@ class Job:
 class TestJob(Job):
     def __init__(self, path, cache, files, input_dir, opts_in, opts_out, input_mode, norun, handler, logger):
         super().__init__(path, cache, opts_in, opts_out, input_mode, handler, logger)
-        self.Name = VwOpts.to_string({k: opts_in[k] for k in opts_in.keys() - {'#base'}})
         for f in files:
             self.Tasks.append(Task(self, f, input_dir, None, cache.Path, norun))
 
@@ -210,7 +210,6 @@ class TrainJob(Job):
         if '-f' not in opts_out:
             opts_out.append('-f')
         super().__init__(path, cache, opts_in, opts_out, input_mode, handler, logger)
-        self.Name = VwOpts.to_string({k: opts_in[k] for k in opts_in.keys() - {'#base'}})
         for i, f in enumerate(files):
             model = None if i == 0 else self.Tasks[i - 1].PopulatedRelative['-f']
             self.Tasks.append(Task(self, f, input_dir, model, cache.Path, norun))
