@@ -116,7 +116,7 @@ class Task:
         self.PopulatedRelative = {o: cache.get_rel_path(opts, o, salt) for o in self.Job.OptsOut}
         self.Populated = {o: cache.get_path(opts, o, salt) for o in self.Job.OptsOut}
 
-        self.MetricsPath = cache.get_path(opts, salt)
+        self.StdOutPath = cache.get_path(opts, salt)
 
         if self.Model:
             opts['-i'] = os.path.join(self.ModelFolder, self.Model)
@@ -139,7 +139,7 @@ class Task:
         return error
 
     def run(self, reset):
-        result_files = list(self.Populated.values()) + [self.MetricsPath]
+        result_files = list(self.Populated.values()) + [self.StdOutPath]
         not_exist = next((p for p in result_files if not os.path.exists(p)), None)
 
         if reset or not_exist:
@@ -149,10 +149,10 @@ class Task:
                 raise Exception('Result is not found, and execution is deprecated')
 
             result = self.__run__()
-            __save__(result, self.MetricsPath)
+            __save__(result, self.StdOutPath)
         else:
             self.Logger.debug(f'Result of vw execution is found: {self.Args}')
-        raw_result = __load__(self.MetricsPath)
+        raw_result = __load__(self.StdOutPath)
         self.Logger.debug(raw_result)
         self.Result, success = __parse_vw_output__(raw_result)
         self.Status = ExecutionStatus.Success if success else ExecutionStatus.Failed
@@ -165,7 +165,7 @@ class Task:
 
 
     def stdout(self):
-        return open(self.MetricsPath, 'r').readlines()
+        return open(self.StdOutPath, 'r').readlines()
 
 class Job:
     def __init__(self, path, cache, opts_in, opts_out, input_mode, handler):
@@ -179,14 +179,14 @@ class Job:
         self.Handler = handler
         self.Status = ExecutionStatus.NotStarted
         self.Loss = None
-        self.Populated = []
+        self.Populated = {o: [] for o in self.OptsOut}
         self.Metrics = []
         self.Tasks = []
 
     def run(self, reset):
         self.Handler.on_job_start(self)
         self.Status = ExecutionStatus.Running
-        for index, t in enumerate(self.Tasks):
+        for t in self.Tasks:
             self.Handler.on_task_start(self)
             t.run(reset)
             self.Handler.on_task_finish(self)
@@ -195,7 +195,8 @@ class Job:
                 self.Handler.on_job_finish(self)
                 self.Failed = t
                 return self
-            self.Populated.append(t.Populated)
+            for p in t.Populated:
+                self.Populated[p].append(t.Populated[p])
             self.Metrics.append(t.Result)
             self.Loss = t.Result['loss']
         self.Status = ExecutionStatus.Success
@@ -213,9 +214,9 @@ class TestJob(Job):
 
 class TrainJob(Job):
     def __init__(self, path, cache, files, input_dir, opts_in, opts_out, input_mode, norun, handler):
-        super().__init__(path, cache, opts_in, opts_out, input_mode, handler)
         if '-f' not in opts_out:
             opts_out.append('-f')
+        super().__init__(path, cache, opts_in, opts_out, input_mode, handler)
         self.Name = VwOpts.to_string({k: opts_in[k] for k in opts_in.keys() - {'#base'}})
         for i, f in enumerate(files):
             model = None if i == 0 else self.Tasks[i - 1].PopulatedRelative['-f']
