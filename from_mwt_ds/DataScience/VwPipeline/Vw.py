@@ -91,14 +91,6 @@ class ExecutionStatus(enum.Enum):
     Failed = 4
 
 
-class VwResult:
-    def __init__(self, count):
-        self.Loss = None
-        self.Populated = []
-        self.Metrics = []
-        self.Status = ExecutionStatus.NotStarted
-
-
 class Task:
     def __init__(self, job, file, folder, model, model_folder = '', norun=False):
         self.Job = job
@@ -109,7 +101,9 @@ class Task:
         self.Model = model
         self.ModelFolder = model_folder
         self.NoRun = norun
-        self.Result = {}
+        self.Status = ExecutionStatus.NotStarted
+        self.Loss = None
+        self.Populated = {}
         self.Args = self.__prepare_args__(self.Job.Cache)
 
     def __prepare_args__(self, cache):
@@ -183,23 +177,28 @@ class Job:
         self.InputMode = input_mode
         self.Failed = None
         self.Handler = handler
+        self.Status = ExecutionStatus.NotStarted
+        self.Loss = None
+        self.Populated = []
+        self.Metrics = []
+        self.Tasks = []
 
     def run(self, reset):
         self.Handler.on_job_start(self)
-        self.Result.Status = ExecutionStatus.Running
+        self.Status = ExecutionStatus.Running
         for index, t in enumerate(self.Tasks):
             self.Handler.on_task_start(self)
             t.run(reset)
             self.Handler.on_task_finish(self)
             if t.Status == ExecutionStatus.Failed:
-                self.Result.Status = ExecutionStatus.Failed
+                self.Status = ExecutionStatus.Failed
                 self.Handler.on_job_finish(self)
                 self.Failed = t
                 return self
-            self.Result.Populated.append(t.Populated)
-            self.Result.Metrics.append(t.Result)
-            self.Result.Loss = t.Result['loss']
-        self.Result.Status = ExecutionStatus.Success
+            self.Populated.append(t.Populated)
+            self.Metrics.append(t.Result)
+            self.Loss = t.Result['loss']
+        self.Status = ExecutionStatus.Success
         self.Handler.on_job_finish(self)
         return self
 
@@ -207,24 +206,20 @@ class Job:
 class TestJob(Job):
     def __init__(self, path, cache, files, input_dir, opts_in, opts_out, input_mode, norun, handler):
         super().__init__(path, cache, opts_in, opts_out, input_mode, handler)
-        self.Tasks = []
         self.Name = VwOpts.to_string({k: opts_in[k] for k in opts_in.keys() - {'#base'}})
         for f in files:
             self.Tasks.append(Task(self, f, input_dir, None, cache.Path, norun))
-        self.Result = VwResult(len(files))
 
 
 class TrainJob(Job):
     def __init__(self, path, cache, files, input_dir, opts_in, opts_out, input_mode, norun, handler):
         super().__init__(path, cache, opts_in, opts_out, input_mode, handler)
-        self.Tasks = []
         if '-f' not in opts_out:
             opts_out.append('-f')
         self.Name = VwOpts.to_string({k: opts_in[k] for k in opts_in.keys() - {'#base'}})
         for i, f in enumerate(files):
             model = None if i == 0 else self.Tasks[i - 1].PopulatedRelative['-f']
             self.Tasks.append(Task(self, f, input_dir, model, cache.Path, norun))
-        self.Result = VwResult(len(files))
 
 
 class Vw:
@@ -263,19 +258,17 @@ class Vw:
             result = self.__run_on_dict__(inputs, opts_in, opts_out, input_mode, input_dir, job_type)
             result_pd = []
             for r in result:
-                loss = r.Result.Loss if r.Failed==None else None
-                populated = r.Result.Populated if r.Result else None
-                metrics = metrics_table(r.Result.Metrics) if r.Result.Metrics else None
-                final_metrics = final_metrics_table(r.Result.Metrics) if r.Result.Metrics else None
-                results = {'!Loss': loss, '!Populated': populated,
+                loss = r.Loss if r.Failed==None else None
+                metrics = metrics_table(r.Metrics) if r.Metrics else None
+                final_metrics = final_metrics_table(r.Metrics) if r.Metrics else None
+                results = {'!Loss': loss, '!Populated': r.Populated,
                            '!Metrics': metrics,
                            '!FinalMetrics': final_metrics,
                            '!Job': r}
                 result_pd.append(dict(r.OptsIn, **results))
             return pd.DataFrame(result_pd)
         else:
-            results = self.__run_on_dict__(inputs, opts_in, opts_out, input_mode, input_dir, job_type)
-            return [r.Result for r in results] if isinstance(results, list) else results.Result
+            return self.__run_on_dict__(inputs, opts_in, opts_out, input_mode, input_dir, job_type)
 
     def cache(self, inputs, opts, input_dir = ''):
         if isinstance(opts, list):
