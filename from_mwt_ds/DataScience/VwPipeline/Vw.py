@@ -216,13 +216,13 @@ class TrainJob(Job):
 
 
 class Vw:
-    def __init__(self, path, cache, procs=multiprocessing.cpu_count(), norun=False, reset=False, handler=Logger.EmptyHandler(), logger=Logger.EmptyLogger()):
+    def __init__(self, path, cache, procs=multiprocessing.cpu_count(), norun=False, reset=False, handlers=[], loggers=[]):
         self.Path = path
         self.Cache = cache
-        self.Logger = logger
+        self.Logger = Logger.__Logger__(loggers)
         self.Pool = SeqPool() if procs == 1 else MultiThreadPool(procs)
         self.NoRun = norun
-        self.Handler = handler
+        self.Handler = Logger.__Handler__(handlers)
         self.Reset = reset
 
     def __with__(self, path=None, cache=None, procs=None, norun=None, reset=None, handler=None):

@@ -8,50 +8,55 @@ class ConsoleLogger:
         self.level = logging.getLevelName(level)
         self.lock = Lock()
 
-    def debug(self, message: str, prefix: str = None):
+    def debug(self, message: str, job=None):
         if self.level <= logging.DEBUG:
-            self.__trace__(message, prefix)
+            self.__trace__(message, job)
 
-    def info(self, message: str, prefix: str = None):
+    def info(self, message: str, job=None):
         if self.level <= logging.INFO:
-            self.__trace__(message, prefix)
+            self.__trace__(message, job)
 
-    def warning(self, message: str, prefix: str = None):
+    def warning(self, message: str, job=None):
         if self.level <= logging.WARNING:
-            self.__trace__(message, prefix)
+            self.__trace__(message, job)
 
-    def error(self, message: str, prefix: str = None):
+    def error(self, message: str, job=None):
         if self.level <= logging.ERROR:
-            self.__trace__(message, prefix)
+            self.__trace__(message, job)
 
-    def critical(self, message: str, prefix: str = None):
+    def critical(self, message: str, job=None):
         if self.level <= logging.CRITICAL:
-            self.__trace__(message, prefix)
+            self.__trace__(message, job)
 
-    def __trace__(self, message: str, prefix: str):
-        prefix = f'{prefix}[{time.strftime("%d-%m-%Y %H:%M:%S", time.localtime(time.time()))}] '
+    def __trace__(self, message: str, job: str):
+        prefix = f'[{job or "-"}][{time.strftime("%d-%m-%Y %H:%M:%S", time.localtime(time.time()))}] '
         self.lock.acquire()
         print(prefix + message)
         self.lock.release()
 
-class EmptyLogger:
-    def __init__(self):
-        pass
+class __Logger__:
+    def __init__(self, loggers: list):
+        self.Loggers = loggers
 
-    def debug(self, message: str, prefix: str = None):
-        pass
+    def debug(self, message: str, job=None):
+        for l in self.Loggers:
+            l.debug(message, job)
 
-    def info(self, message: str, prefix: str = None):
-        pass
+    def info(self, message: str, job=None):
+        for l in self.Loggers:
+            l.info(message, job)
 
-    def warning(self, message: str, prefix: str = None):
-        pass
+    def warning(self, message: str,  job=None):
+        for l in self.Loggers:
+            l.warning(message, job)
 
-    def error(self, message: str, prefix: str = None):
-        pass
+    def error(self, message: str, job=None):
+        for l in self.Loggers:
+            l.error(message, job)
 
-    def critical(self, message: str, prefix: str = None):
-        pass
+    def critical(self, message: str, job=None):
+        for l in self.Loggers:
+            l.critical(message, job)
 
 class WidgetHandler:      
     def __init__(self, leave=False):
@@ -88,26 +93,30 @@ class WidgetHandler:
         self.Jobs[job.Name].update(1)
         self.Jobs[job.Name].refresh()
 
-
-
-class EmptyHandler:
-    def __init__(self):
-        pass
+class __Handler__:
+    def __init__(self, handlers):
+        self.Handlers = handlers
 
     def on_start(self, inputs, opts_in):
-        pass
+        for h in self.Handlers:
+            h.on_start(inputs, opts_in)
 
     def on_finish(self):
-        pass
+        for h in self.Handlers:
+            h.on_finish()
 
     def on_job_start(self, job):
-        pass
+        for h in self.Handlers:
+            h.on_job_start(job)
 
     def on_job_finish(self, job):
-        pass
+        for h in self.Handlers:
+            h.on_job_finish(job)
 
-    def on_task_start(self, job):
-        pass
+    def on_task_start(self, job, task):
+        for h in self.Handlers:
+            h.on_task_start(job, task)
 
-    def on_task_finish(self, job):
-        pass 
+    def on_task_finish(self, job, task):
+        for h in self.Handlers:
+            h.on_task_finish(job, task)
