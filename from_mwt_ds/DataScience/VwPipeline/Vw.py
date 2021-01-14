@@ -6,7 +6,7 @@ import enum
 
 from VwPipeline.Pool import SeqPool, MultiThreadPool
 from VwPipeline import VwOpts
-from VwPipeline import Logger
+from VwPipeline import Loggers, Handlers
 
 import multiprocessing
 
@@ -219,10 +219,10 @@ class Vw:
     def __init__(self, path, cache, procs=multiprocessing.cpu_count(), norun=False, reset=False, handlers=[], loggers=[]):
         self.Path = path
         self.Cache = cache
-        self.Logger = Logger.__Logger__(loggers)
+        self.Logger = Loggers.__Loggers__(loggers)
         self.Pool = SeqPool() if procs == 1 else MultiThreadPool(procs)
         self.NoRun = norun
-        self.Handler = Logger.__Handler__(handlers)
+        self.Handler = Handlers.__Handlers__(handlers)
         self.Reset = reset
 
     def __with__(self, path=None, cache=None, procs=None, norun=None, reset=None, handler=None):
