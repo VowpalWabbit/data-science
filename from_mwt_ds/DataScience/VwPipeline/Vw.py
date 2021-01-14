@@ -119,7 +119,7 @@ class Task:
         self.PopulatedRelative = {o: cache.get_rel_path(opts, o, salt) for o in self.Job.OptsOut}
         self.Populated = {o: cache.get_path(opts, o, salt, self.Logger) for o in self.Job.OptsOut}
 
-        self.StdOutPath = cache.get_path(opts, salt, self.Logger)
+        self.StdOutPath = cache.get_path(opts, None, salt, self.Logger)
 
         if self.Model:
             opts['-i'] = os.path.join(self.ModelFolder, self.Model)
