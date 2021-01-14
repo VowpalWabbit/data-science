@@ -1,3 +1,8 @@
+from VwPipeline.Vw import ExecutionStatus
+
+import os
+import shutil
+
 class WidgetHandler:      
     def __init__(self, leave=False):
         self.Total = None
@@ -26,12 +31,54 @@ class WidgetHandler:
         self.Total.update(1)
         self.Total.refresh()
 
-    def on_task_start(self, job, task):
+    def on_task_start(self, job, task_idx):
         pass
 
-    def on_task_finish(self, job, task):
+    def on_task_finish(self, job, task_idx):
         self.Jobs[job.Name].update(1)
         self.Jobs[job.Name].refresh()
+
+class AzureMLHandler:
+    def __init__(self, context, folder=None):
+        self.Folder = folder
+        if self.Folder:
+            os.makedirs(folder, exist_ok=True)
+        from azureml.core import Run
+        self.context = context
+
+    def on_start(self, inputs, opts_in):
+        pass
+
+    def on_finish(self):
+        pass
+
+    def on_job_start(self, job):
+        pass
+
+    def on_job_finish(self, job):
+        pass
+
+    def on_task_start(self, job, task_idx):
+        pass
+
+    def on_task_finish(self, job, task_idx):
+        task = job.Tasks[task_idx]
+        if self.Folder and os.path.exists(task.StdOutPath):
+            fname = f'{job.Name}.{task_idx}.stdout.txt'
+            shutil.copyfile(task.StdOutPath, os.path.join(self.Folder, fname))
+        if task.Status == ExecutionStatus.Success:
+            per_example = task.Result['loss_per_example']
+            since_last = task.Result['since_last']
+            metrics = task.Result['metrics']
+
+            for key, value in per_example.items():
+                self.context.log_row('avg_loss_by_example', count=key, loss=value)
+
+            for key, value in since_last.items():
+                self.context.log("loss_by_example", value)
+
+            for key, value in metrics.items():
+                self.context.log(key, value)
 
 class __Handlers__:
     def __init__(self, handlers):
@@ -53,10 +100,10 @@ class __Handlers__:
         for h in self.Handlers:
             h.on_job_finish(job)
 
-    def on_task_start(self, job, task):
+    def on_task_start(self, job, task_idx):
         for h in self.Handlers:
-            h.on_task_start(job, task)
+            h.on_task_start(job, task_idx)
 
-    def on_task_finish(self, job, task):
+    def on_task_finish(self, job, task_idx):
         for h in self.Handlers:
-            h.on_task_finish(job, task)
+            h.on_task_finish(job, task_idx)
