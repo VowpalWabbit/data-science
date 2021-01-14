@@ -3,60 +3,98 @@ import time
 
 from threading import Lock
 
-class ConsoleLogger:
-    def __init__(self, level: str = 'INFO'):
-        self.level = logging.getLevelName(level)
+class __LoggerCore__:
+    def __init__(self, impl, level, tag):
+        self.level = level
+        self.impl = impl
+        self.tag = tag
+
+    def debug(self, message: str):
+        if self.level <= logging.DEBUG:
+            self.__trace__(message)
+
+    def info(self, message: str):
+        if self.level <= logging.INFO:
+            self.__trace__(message)
+
+    def warning(self, message: str):
+        if self.level <= logging.WARNING:
+            self.__trace__(message)
+
+    def error(self, message: str):
+        if self.level <= logging.ERROR:
+            self.__trace__(message)
+
+    def critical(self, message: str):
+        if self.level <= logging.CRITICAL:
+            self.__trace__(message)
+
+    def __trace__(self, message: str):
+        prefix = f'[{self.tag}][{time.strftime("%d-%m-%Y %H:%M:%S", time.localtime(time.time()))}]'
+        self.impl.trace(f'{prefix} {message}')
+
+
+class ConsoleLoggerImpl:
+    def __init__(self):
         self.lock = Lock()
 
-    def debug(self, message: str, job=None):
-        if self.level <= logging.DEBUG:
-            self.__trace__(message, job)
-
-    def info(self, message: str, job=None):
-        if self.level <= logging.INFO:
-            self.__trace__(message, job)
-
-    def warning(self, message: str, job=None):
-        if self.level <= logging.WARNING:
-            self.__trace__(message, job)
-
-    def error(self, message: str, job=None):
-        if self.level <= logging.ERROR:
-            self.__trace__(message, job)
-
-    def critical(self, message: str, job=None):
-        if self.level <= logging.CRITICAL:
-            self.__trace__(message, job)
-
-    def __trace__(self, message: str, job: str):
-        prefix = f'[{job or "-"}][{time.strftime("%d-%m-%Y %H:%M:%S", time.localtime(time.time()))}] '
+    def trace(self, message: str):
         self.lock.acquire()
-        print(prefix + message)
+        print(message)
         self.lock.release()
+
+class ConsoleLogger(__LoggerCore__):
+    def __init__(self, level: str = 'INFO', tag=None, impl=ConsoleLoggerImpl()):
+        self.LevelStr = level 
+        super().__init__(impl, logging.getLevelName(self.LevelStr), tag)
+
+    def __getitem__(self, key):
+        return ConsoleLogger(self.LevelStr, key, self.impl)
+    
+    def trace(self, message: str):
+        self.impl.trace(message)
+
+#class FileLogger:
+#    def __init__(self, path, thread_safe=True, level: str = 'INFO'):
+#        super().__init__(level)
+#        self.impl = open(path, 'w')
+#        self.lock = Lock()
+
+#    def __trace__(self, message: str, job: str):
+#        prefix = f'[{job or "-"}][{time.strftime("%d-%m-%Y %H:%M:%S", time.localtime(time.time()))}] '
+#        if self.thread_safe:
+#            self.lock.acquire()
+#            print(prefix + message)
+#            self.lock.release()
+#        else:
+#            print(prefix + message)
 
 class __Logger__:
     def __init__(self, loggers: list):
         self.Loggers = loggers
 
-    def debug(self, message: str, job=None):
+    def debug(self, message: str):
         for l in self.Loggers:
-            l.debug(message, job)
+            l.debug(message)
 
-    def info(self, message: str, job=None):
+    def info(self, message: str):
         for l in self.Loggers:
-            l.info(message, job)
+            l.info(message)
 
-    def warning(self, message: str,  job=None):
+    def warning(self, message: str):
         for l in self.Loggers:
-            l.warning(message, job)
+            l.warning(message)
 
-    def error(self, message: str, job=None):
+    def error(self, message: str):
         for l in self.Loggers:
-            l.error(message, job)
+            l.error(message)
 
     def critical(self, message: str, job=None):
         for l in self.Loggers:
-            l.critical(message, job)
+            l.critical(message)
+
+    def __getitem__(self, key):
+        return __Logger__([l[key] for l in self.Loggers])
 
 class WidgetHandler:      
     def __init__(self, leave=False):

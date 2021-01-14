@@ -165,9 +165,9 @@ class Job:
     def __init__(self, path, cache, opts_in, opts_out, input_mode, handler, logger):
         self.Path = path
         self.Cache = cache
-        self.Logger = logger
         self.OptsIn = opts_in
         self.Name = VwOpts.to_string({k: opts_in[k] for k in opts_in.keys() - {'#base'}})
+        self.Logger = logger[self.Name]
         self.OptsOut = opts_out
         self.InputMode = input_mode
         self.Failed = None
