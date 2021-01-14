@@ -1,6 +1,6 @@
 import os
 
-from VwPipeline import Logger
+from VwPipeline import Loggers
 
 
 class VwCache:
