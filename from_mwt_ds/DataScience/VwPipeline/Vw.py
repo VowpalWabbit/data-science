@@ -180,11 +180,14 @@ class Job:
 
     def run(self, reset):
         self.Handler.on_job_start(self)
+        self.Logger.debug('Starting job...')
         self.Status = ExecutionStatus.Running
         for i, t in enumerate(self.Tasks):
+            self.Logger.debug(f'Starting task {i}...')
             self.Handler.on_task_start(self, i)
             t.run(reset)
             self.Handler.on_task_finish(self, i)
+            self.Logger.debug(f'Task {i} is finished: {t.Status}')
             if t.Status == ExecutionStatus.Failed:
                 self.Failed = t
                 break
@@ -193,6 +196,7 @@ class Job:
             self.Metrics.append(t.Result)
 
         self.Status = self.Failed.Status if self.Failed else ExecutionStatus.Success
+        self.Logger.debug(f'Job is finished: {self.Status}')
         self.Loss = self.Tasks[-1].Loss if len(self.Tasks) > 0 and self.Status == ExecutionStatus.Success else None
         self.Handler.on_job_finish(self)
         return self
