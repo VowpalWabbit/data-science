@@ -231,7 +231,7 @@ class Vw:
 
     def __with__(self, path=None, cache=None, procs=None, norun=None, reset=None, handlers=None, loggers=None):
         return Vw(path or self.Path, cache or self.Cache, procs or self.Pool.Procs, 
-            norun or self.NoRun, reset or self.Reset, handlers or self.Handler.Handlers,
+            norun if norun is not None else self.NoRun, reset if reset is not None else self.Reset, handlers or self.Handler.Handlers,
             loggers or self.Logger.Loggers)
 
     def __run_impl__(self, inputs, opts_in, opts_out, input_mode, input_dir, job_type):
