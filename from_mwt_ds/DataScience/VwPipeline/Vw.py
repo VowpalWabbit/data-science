@@ -156,7 +156,7 @@ class Task:
         else:
             self.Logger.debug(f'Result of vw execution is found: {self.Args}')
         self.Result, self.Loss = __parse_vw_output__(self.stdout())
-        self.Status = ExecutionStatus.Success if self.Loss else ExecutionStatus.Failed
+        self.Status = ExecutionStatus.Success if self.Loss is not None else ExecutionStatus.Failed
 
     def stdout(self):
         return open(self.StdOutPath, 'r').readlines()
