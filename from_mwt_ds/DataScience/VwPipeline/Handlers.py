@@ -18,7 +18,7 @@ class WidgetHandler:
         self.Tasks = len(inputs)
         self.Total = tqdm(range(len(opts_in)), desc='Total', leave=self.Leave)
 
-    def on_finish(self):
+    def on_finish(self, result):
         self.Total.close()    
 
     def on_job_start(self, job):
@@ -49,8 +49,12 @@ class AzureMLHandler:
     def on_start(self, inputs, opts_in):
         pass
 
-    def on_finish(self):
-        pass
+    def on_finish(self, result):
+        best = result if not isinstance(result, list) else sorted(result, key=lambda x: x.Loss)[0]
+        for k, v in best.OptsIn.items():
+            if k != '#base':
+                self.context.log(k, v)
+        self.context.log('loss', best.Loss)
 
     def on_job_start(self, job):
         pass
@@ -88,9 +92,9 @@ class __Handlers__:
         for h in self.Handlers:
             h.on_start(inputs, opts_in)
 
-    def on_finish(self):
+    def on_finish(self, result):
         for h in self.Handlers:
-            h.on_finish()
+            h.on_finish(result)
 
     def on_job_start(self, job):
         for h in self.Handlers:

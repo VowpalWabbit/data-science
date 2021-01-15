@@ -247,7 +247,7 @@ class Vw:
             result = self.Pool.map(self.__run_impl__, args)
         else:
             result = self.__run_impl__(inputs, opts_in, opts_out, input_mode, input_dir, job_type)
-        self.Handler.on_finish()
+        self.Handler.on_finish(result)
         return result        
 
     def __run__(self, inputs, opts_in, opts_out, input_mode, input_dir, job_type):
