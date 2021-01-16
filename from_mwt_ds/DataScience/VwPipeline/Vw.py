@@ -1,5 +1,4 @@
 import subprocess
-import json
 import os
 import pandas as pd
 import enum
@@ -92,7 +91,7 @@ class ExecutionStatus(enum.Enum):
 
 
 class Task:
-    def __init__(self, job, file, folder, model, model_folder = '', norun=False):
+    def __init__(self, job, file, folder, model, model_folder='', norun=False):
         self.Job = job
         self.File = file
         self.Folder = folder
@@ -105,11 +104,12 @@ class Task:
         self.Loss = None
         self.Populated = {}
         self.Args = self.__prepare_args__(self.Job.Cache)
+        self.Result = {}
 
     def __prepare_args__(self, cache):
         opts = self.Job.OptsIn.copy()
         opts[self.Job.InputMode] = self.File
-        
+
         file_full = os.path.join(self.Folder, self.File)
 
         salt = os.path.getsize(file_full)
@@ -123,7 +123,7 @@ class Task:
 
         if self.Model:
             opts['-i'] = os.path.join(self.ModelFolder, self.Model)
-            
+
         opts[self.Job.InputMode] = file_full
         opts = dict(opts, **self.Populated)
         return VwOpts.to_string(opts)
@@ -160,6 +160,7 @@ class Task:
 
     def stdout(self):
         return open(self.StdOutPath, 'r').readlines()
+
 
 class Job:
     def __init__(self, path, cache, opts_in, opts_out, input_mode, handler, logger):
@@ -220,7 +221,8 @@ class TrainJob(Job):
 
 
 class Vw:
-    def __init__(self, path, cache, procs=multiprocessing.cpu_count(), norun=False, reset=False, handlers=[], loggers=[]):
+    def __init__(self, path, cache, procs=multiprocessing.cpu_count(), norun=False, reset=False, handlers=[],
+                 loggers=[]):
         self.Path = path
         self.Cache = cache
         self.Logger = Loggers.__Loggers__(loggers)
@@ -230,12 +232,14 @@ class Vw:
         self.Reset = reset
 
     def __with__(self, path=None, cache=None, procs=None, norun=None, reset=None, handlers=None, loggers=None):
-        return Vw(path or self.Path, cache or self.Cache, procs or self.Pool.Procs, 
-            norun if norun is not None else self.NoRun, reset if reset is not None else self.Reset, handlers or self.Handler.Handlers,
-            loggers or self.Logger.Loggers)
+        return Vw(path or self.Path, cache or self.Cache, procs or self.Pool.Procs,
+                  norun if norun is not None else self.NoRun,
+                  reset if reset is not None else self.Reset, handlers or self.Handler.Handlers,
+                  loggers or self.Logger.Loggers)
 
     def __run_impl__(self, inputs, opts_in, opts_out, input_mode, input_dir, job_type):
-        job = job_type(self.Path, self.Cache, inputs, input_dir, opts_in, opts_out, input_mode, self.NoRun, self.Handler, self.Logger)
+        job = job_type(self.Path, self.Cache, inputs, input_dir, opts_in, opts_out, input_mode, self.NoRun,
+                       self.Handler, self.Logger)
         return job.run(self.Reset)
 
     def __run_on_dict__(self, inputs, opts_in, opts_out, input_mode, input_dir, job_type):
@@ -248,7 +252,7 @@ class Vw:
         else:
             result = self.__run_impl__(inputs, opts_in, opts_out, input_mode, input_dir, job_type)
         self.Handler.on_finish(result)
-        return result        
+        return result
 
     def __run__(self, inputs, opts_in, opts_out, input_mode, input_dir, job_type):
         if isinstance(opts_in, pd.DataFrame):
@@ -256,7 +260,7 @@ class Vw:
             result = self.__run_on_dict__(inputs, opts_in, opts_out, input_mode, input_dir, job_type)
             result_pd = []
             for r in result:
-                loss = r.Loss if r.Failed==None else None
+                loss = r.Loss if r.Failed == None else None
                 metrics = metrics_table(r.Metrics) if r.Metrics else None
                 final_metrics = final_metrics_table(r.Metrics) if r.Metrics else None
                 results = {'!Loss': loss, '!Populated': r.Populated,
@@ -268,7 +272,7 @@ class Vw:
         else:
             return self.__run_on_dict__(inputs, opts_in, opts_out, input_mode, input_dir, job_type)
 
-    def cache(self, inputs, opts, input_dir = ''):
+    def cache(self, inputs, opts, input_dir=''):
         if isinstance(opts, list):
             cache_opts = [{'#cmd': o_dedup} for o_dedup in set([VwOpts.to_cache_cmd(o) for o in opts])]
         else:
