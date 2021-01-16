@@ -56,7 +56,7 @@ class TestDimension(unittest.TestCase):
 
         self.assertEqual(
             VwOpts.dimension('-o', [1, 2, 3]),
-            [{'-o': '1'}, {'-o': '2'}, {'-o': '3'}])
+            [{'-o': 1}, {'-o': 2}, {'-o': 3}])
 
         self.assertEqual(
             VwOpts.dimension('-o', ['value1', 'value2', 'value3']),
@@ -105,7 +105,7 @@ class TestProduct(unittest.TestCase):
                 VwOpts.dimension('-o1', [1, 2]),
                 VwOpts.dimension('-o2', [1, 2])
             ),
-            [{'-o1': '1', '-o2': '1'}, {'-o1': '1', '-o2': '2'}, {'-o1': '2', '-o2': '1'}, {'-o1': '2', '-o2': '2'}])
+            [{'-o1': 1, '-o2': 1}, {'-o1': 1, '-o2': 2}, {'-o1': 2, '-o2': 1}, {'-o1': 2, '-o2': 2}])
 
 
 class TestCacheCmd(unittest.TestCase):
