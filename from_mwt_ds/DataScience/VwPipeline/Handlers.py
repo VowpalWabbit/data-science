@@ -6,45 +6,43 @@ import shutil
 
 class WidgetHandler:      
     def __init__(self, leave=False):
-        self.Total = None
-        self.Tasks = 0
-        self.Done = 0
-        self.TimePerJob = 0
-        self.Leave = leave
-        self.Jobs = {}
+        self.total = None
+        self.tasks = 0
+        self.leave = leave
+        self.jobs = {}
 
     def on_start(self, inputs, opts):
         from tqdm import tqdm_notebook as tqdm
-        self.Jobs = {}
-        self.Tasks = len(inputs)
-        self.Total = tqdm(range(len(opts)), desc='Total', leave=self.Leave)
+        self.jobs = {}
+        self.tasks = len(inputs)
+        self.total = tqdm(range(len(opts)), desc='Total', leave=self.leave)
 
     def on_finish(self, _result):
-        self.Total.close()    
+        self.total.close()
 
     def on_job_start(self, job):
         from tqdm import tqdm_notebook as tqdm
-        self.Jobs[job.name] = tqdm(range(self.Tasks), desc=job.name, leave=self.Leave)
+        self.jobs[job.name] = tqdm(range(self.tasks), desc=job.name, leave=self.leave)
 
     def on_job_finish(self, job):
-        self.Jobs[job.name].close()
-        self.Jobs.pop(job.name)
-        self.Total.update(1)
-        self.Total.refresh()
+        self.jobs[job.name].close()
+        self.jobs.pop(job.name)
+        self.total.update(1)
+        self.total.refresh()
 
     def on_task_start(self, job, task_idx):
         pass
 
     def on_task_finish(self, job, _task_idx):
-        self.Jobs[job.name].update(1)
-        self.Jobs[job.name].refresh()
+        self.jobs[job.name].update(1)
+        self.jobs[job.name].refresh()
 
 
 class AzureMLHandler:
     def __init__(self, context, folder=None):
-        self.Folder = folder
-        if self.Folder:
-            os.makedirs(folder, exist_ok=True)
+        self.folder = folder
+        if self.folder:
+            os.makedirs(self.folder, exist_ok=True)
         self.context = context
 
     def on_start(self, inputs, opts):
@@ -68,9 +66,9 @@ class AzureMLHandler:
 
     def on_task_finish(self, job, task_idx):
         task = job.tasks[task_idx]
-        if self.Folder and os.path.exists(task.stdout_path):
+        if self.folder and os.path.exists(task.stdout_path):
             fname = f'{job.name}.{task_idx}.stdout.txt'
-            shutil.copyfile(task.stdout_path, os.path.join(self.Folder, fname))
+            shutil.copyfile(task.stdout_path, os.path.join(self.folder, fname))
         if task.status == ExecutionStatus.Success:
             per_example = task.metrics['loss_per_example']
             since_last = task.metrics['since_last']
@@ -88,28 +86,28 @@ class AzureMLHandler:
 
 class Handlers:
     def __init__(self, handlers):
-        self.Handlers = handlers
+        self.handlers = handlers
 
     def on_start(self, inputs, opts):
-        for h in self.Handlers:
+        for h in self.handlers:
             h.on_start(inputs, opts)
 
     def on_finish(self, result):
-        for h in self.Handlers:
+        for h in self.handlers:
             h.on_finish(result)
 
     def on_job_start(self, job):
-        for h in self.Handlers:
+        for h in self.handlers:
             h.on_job_start(job)
 
     def on_job_finish(self, job):
-        for h in self.Handlers:
+        for h in self.handlers:
             h.on_job_finish(job)
 
     def on_task_start(self, job, task_idx):
-        for h in self.Handlers:
+        for h in self.handlers:
             h.on_task_start(job, task_idx)
 
     def on_task_finish(self, job, task_idx):
-        for h in self.Handlers:
+        for h in self.handlers:
             h.on_task_finish(job, task_idx)

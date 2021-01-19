@@ -204,7 +204,7 @@ class TestJob(Job):
     def __init__(self, vw_path, cache, files, input_dir, opts, outputs, input_mode, no_run, handler, logger):
         super().__init__(vw_path, cache, opts, outputs, input_mode, handler, logger)
         for f in files:
-            self.tasks.append(Task(self, self._logger, f, input_dir, None, cache.Path, no_run))
+            self.tasks.append(Task(self, self._logger, f, input_dir, None, cache.path, no_run))
 
 
 class TrainJob(Job):
@@ -214,7 +214,7 @@ class TrainJob(Job):
         super().__init__(vw_path, cache, opts, outputs, input_mode, handler, logger)
         for i, f in enumerate(files):
             model = None if i == 0 else self.tasks[i - 1].outputs_relative['-f']
-            self.tasks.append(Task(self, self._logger, f, input_dir, model, cache.Path, no_run))
+            self.tasks.append(Task(self, self._logger, f, input_dir, model, cache.path, no_run))
 
 
 class Vw:

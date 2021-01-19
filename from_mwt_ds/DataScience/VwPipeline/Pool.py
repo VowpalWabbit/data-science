@@ -8,7 +8,7 @@ def _execute(task_input):
 
 class SeqPool:
     def __init__(self):
-        self.Procs = 1
+        self.procs = 1
         
     def map(self, task, inputs):
         result = []
@@ -19,9 +19,9 @@ class SeqPool:
 
 class MultiThreadPool:
     def __init__(self, procs=multiprocessing.cpu_count()):
-        self.Procs = procs
+        self.procs = procs
 
     def map(self, task, inputs):
-        p = ThreadPool(processes=self.Procs)
+        p = ThreadPool(processes=self.procs)
         args = [(task, i) for i in inputs]
         return p.map(_execute, args)

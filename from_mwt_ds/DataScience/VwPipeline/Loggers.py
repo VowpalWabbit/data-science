@@ -69,11 +69,11 @@ class FileLoggerUnsafe:
 
 class ConsoleLogger(_LoggerCore):
     def __init__(self, level: str = 'INFO', tag=None, impl=ConsoleLoggerImpl()):
-        self.LevelStr = level 
-        super().__init__(impl, logging.getLevelName(self.LevelStr), tag)
+        self.level_str = level
+        super().__init__(impl, logging.getLevelName(self.level_str), tag)
 
     def __getitem__(self, key):
-        return ConsoleLogger(self.LevelStr, key, self.impl)
+        return ConsoleLogger(self.level_str, key, self.impl)
     
     def trace(self, message: str):
         self.impl.trace(message)
@@ -81,13 +81,13 @@ class ConsoleLogger(_LoggerCore):
 
 class FileLogger(_LoggerCore):
     def __init__(self, path=None, level: str = 'INFO', tag=None, impl=None):
-        self.LevelStr = level
+        self.level_str = level
         if not impl:
             impl = FileLoggerSafe(path)
-        super().__init__(impl, logging.getLevelName(self.LevelStr), tag)
+        super().__init__(impl, logging.getLevelName(self.level_str), tag)
 
     def __getitem__(self, key):
-        return FileLogger(path=None, level=self.LevelStr, tag=key, impl=self.impl)
+        return FileLogger(path=None, level=self.level_str, tag=key, impl=self.impl)
     
     def trace(self, message: str):
         self.impl.trace(message)
@@ -95,14 +95,14 @@ class FileLogger(_LoggerCore):
 
 class MultiFileLogger(_LoggerCore):
     def __init__(self, folder=None, level: str = 'INFO', tag=None):
-        self.LevelStr = level
-        self.Folder = folder
+        self.level_str = level
+        self.folder = folder
         os.makedirs(folder, exist_ok=True)
         impl = FileLoggerUnsafe(os.path.join(folder, f'{tag or "default"}.txt'))
-        super().__init__(impl, logging.getLevelName(self.LevelStr), None)
+        super().__init__(impl, logging.getLevelName(self.level_str), None)
 
     def __getitem__(self, key):
-        return MultiFileLogger(folder=self.Folder, level=self.LevelStr, tag=key)
+        return MultiFileLogger(folder=self.folder, level=self.LevelStr, tag=key)
     
     def trace(self, message: str):
         self.impl.trace(message)
