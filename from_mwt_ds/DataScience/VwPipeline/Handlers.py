@@ -87,7 +87,7 @@ class AzureMLHandler:
                 self.context.log(key, value)
 
 
-class _Handlers:
+class Handlers:
     def __init__(self, handlers):
         self.Handlers = handlers
 

@@ -4,6 +4,7 @@ import os
 
 from threading import Lock
 
+
 class _LoggerCore:
     def __init__(self, impl, level, tag):
         self.level = level
@@ -33,34 +34,6 @@ class _LoggerCore:
     def _trace(self, message: str):
         prefix = f'[{self.tag or ""}][{time.strftime("%d-%m-%Y %H:%M:%S", time.localtime(time.time()))}]'
         self.impl.trace(f'{prefix} {message}')
-
-
-class _Loggers:
-    def __init__(self, loggers: list):
-        self.Loggers = loggers
-
-    def debug(self, message: str):
-        for l in self.Loggers:
-            l.debug(message)
-
-    def info(self, message: str):
-        for l in self.Loggers:
-            l.info(message)
-
-    def warning(self, message: str):
-        for l in self.Loggers:
-            l.warning(message)
-
-    def error(self, message: str):
-        for l in self.Loggers:
-            l.error(message)
-
-    def critical(self, message: str, job=None):
-        for l in self.Loggers:
-            l.critical(message)
-
-    def __getitem__(self, key):
-        return _Loggers([l[key] for l in self.Loggers])
 
 
 class ConsoleLoggerImpl:
@@ -93,6 +66,7 @@ class FileLoggerUnsafe:
         with open(self.path, 'a') as f:
             f.write(f'{message}\n')
 
+
 class ConsoleLogger(_LoggerCore):
     def __init__(self, level: str = 'INFO', tag=None, impl=ConsoleLoggerImpl()):
         self.LevelStr = level 
@@ -103,6 +77,7 @@ class ConsoleLogger(_LoggerCore):
     
     def trace(self, message: str):
         self.impl.trace(message)
+
 
 class FileLogger(_LoggerCore):
     def __init__(self, path=None, level: str = 'INFO', tag=None, impl=None):
@@ -117,6 +92,7 @@ class FileLogger(_LoggerCore):
     def trace(self, message: str):
         self.impl.trace(message)
 
+
 class MultiFileLogger(_LoggerCore):
     def __init__(self, folder=None, level: str = 'INFO', tag=None):
         self.LevelStr = level
@@ -130,3 +106,31 @@ class MultiFileLogger(_LoggerCore):
     
     def trace(self, message: str):
         self.impl.trace(message)
+
+
+class MultiLoggers:
+    def __init__(self, loggers: list):
+        self.loggers = loggers
+
+    def debug(self, message: str):
+        for logger in self.loggers:
+            logger.debug(message)
+
+    def info(self, message: str):
+        for logger in self.loggers:
+            logger.info(message)
+
+    def warning(self, message: str):
+        for logger in self.loggers:
+            logger.warning(message)
+
+    def error(self, message: str):
+        for logger in self.loggers:
+            logger.error(message)
+
+    def critical(self, message: str):
+        for logger in self.loggers:
+            logger.critical(message)
+
+    def __getitem__(self, key):
+        return MultiLoggers([logger[key] for logger in self.loggers])
