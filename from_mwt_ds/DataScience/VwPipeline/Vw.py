@@ -91,22 +91,22 @@ class ExecutionStatus(enum.Enum):
 
 
 class Task:
-    def __init__(self, job, input_file, input_folder, model_file, model_folder='', no_run=False):
+    def __init__(self, job, logger, input_file, input_folder, model_file, model_folder='', no_run=False):
         self._job = job
         self.input_file = input_file
         self.input_folder = input_folder
-        self._logger = self._job.Logger
+        self._logger = logger
         self.status = ExecutionStatus.NotStarted
         self.model_file = model_file
         self.model_folder = model_folder
         self._no_run = no_run
         self.loss = None
-        self.args = self._prepare_args(self._job.Cache)
+        self.args = self._prepare_args(self._job.cache)
         self.metrics = {}
 
     def _prepare_args(self, cache):
-        opts = self._job.OptsIn.copy()
-        opts[self._job.InputMode] = self.input_file
+        opts = self._job.opts.copy()
+        opts[self._job.input_mode] = self.input_file
 
         input_full = os.path.join(self.input_folder, self.input_file)
 
@@ -114,20 +114,20 @@ class Task:
         if self.model_file:
             opts['-i'] = self.model_file
 
-        self.outputs_relative = {o: cache.get_rel_path(opts, o, salt) for o in self._job.OptsOut}
-        self.outputs = {o: cache.get_path(opts, o, salt, self._logger) for o in self._job.OptsOut}
+        self.outputs_relative = {o: cache.get_rel_path(opts, o, salt) for o in self._job.outputs.keys()}
+        self.outputs = {o: cache.get_path(opts, o, salt, self._logger) for o in self._job.outputs.keys()}
 
         self.stdout_path = cache.get_path(opts, None, salt, self._logger)
 
         if self.model_file:
             opts['-i'] = os.path.join(self.model_folder, self.model_file)
 
-        opts[self._job.InputMode] = input_full
+        opts[self._job.input_mode] = input_full
         opts = dict(opts, **self.outputs)
         return VwOpts.to_string(opts)
 
     def _run(self):
-        command = f'{self._job.Path} {self.args}'
+        command = f'{self._job.vw_path} {self.args}'
         self._logger.debug(f'Executing: {command}')
         process = subprocess.Popen(
             command.split(),
@@ -161,43 +161,42 @@ class Task:
 
 
 class Job:
-    def __init__(self, path, cache, opts_in, opts_out, input_mode, handler, logger):
-        self.Path = path
-        self.Cache = cache
-        self.OptsIn = opts_in
-        self.Name = VwOpts.to_string({k: opts_in[k] for k in opts_in.keys() - {'#base'}})
-        self.Logger = logger[self.Name]
-        self.OptsOut = opts_out
-        self.InputMode = input_mode
-        self.Failed = None
-        self.Handler = handler
-        self.Status = ExecutionStatus.NotStarted
-        self.Loss = None
-        self.Populated = {o: [] for o in self.OptsOut}
-        self.Metrics = []
-        self.Tasks = []
+    def __init__(self, vw_path, cache, opts, outputs, input_mode, handler, logger):
+        self.vw_path = vw_path
+        self.cache = cache
+        self.opts = opts
+        self.name = VwOpts.to_string({k: opts[k] for k in opts.keys() - {'#base'}})
+        self._logger = logger[self.name]
+        self.input_mode = input_mode
+        self.failed = None
+        self._handler = handler
+        self.status = ExecutionStatus.NotStarted
+        self.loss = None
+        self.outputs = {o: [] for o in outputs}
+        self.metrics = []
+        self.tasks = []
 
     def run(self, reset):
-        self.Handler.on_job_start(self)
-        self.Logger.debug('Starting job...')
-        self.Status = ExecutionStatus.Running
-        for i, t in enumerate(self.Tasks):
-            self.Logger.debug(f'Starting task {i}...')
-            self.Handler.on_task_start(self, i)
+        self._handler.on_job_start(self)
+        self._logger.debug('Starting job...')
+        self.status = ExecutionStatus.Running
+        for i, t in enumerate(self.tasks):
+            self._logger.debug(f'Starting task {i}...')
+            self._handler.on_task_start(self, i)
             t.run(reset)
-            self.Handler.on_task_finish(self, i)
-            self.Logger.debug(f'Task {i} is finished: {t.status}')
+            self._handler.on_task_finish(self, i)
+            self._logger.debug(f'Task {i} is finished: {t.status}')
             if t.status == ExecutionStatus.Failed:
-                self.Failed = t
+                self.failed = t
                 break
             for p in t.outputs:
-                self.Populated[p].append(t.outputs[p])
-            self.Metrics.append(t.metrics)
+                self.outputs[p].append(t.outputs[p])
+            self.metrics.append(t.metrics)
 
-        self.Status = self.Failed.status if self.Failed else ExecutionStatus.Success
-        self.Logger.debug(f'Job is finished: {self.Status}')
-        self.Loss = self.Tasks[-1].loss if len(self.Tasks) > 0 and self.Status == ExecutionStatus.Success else None
-        self.Handler.on_job_finish(self)
+        self.status = self.failed.status if self.failed is not None else ExecutionStatus.Success
+        self._logger.debug(f'Job is finished: {self.status}')
+        self.loss = self.tasks[-1].loss if len(self.tasks) > 0 and self.status == ExecutionStatus.Success else None
+        self._handler.on_job_finish(self)
         return self
 
 
@@ -205,7 +204,7 @@ class TestJob(Job):
     def __init__(self, path, cache, files, input_dir, opts_in, opts_out, input_mode, norun, handler, logger):
         super().__init__(path, cache, opts_in, opts_out, input_mode, handler, logger)
         for f in files:
-            self.Tasks.append(Task(self, f, input_dir, None, cache.Path, norun))
+            self.tasks.append(Task(self, self._logger, f, input_dir, None, cache.Path, norun))
 
 
 class TrainJob(Job):
@@ -214,8 +213,8 @@ class TrainJob(Job):
             opts_out.append('-f')
         super().__init__(path, cache, opts_in, opts_out, input_mode, handler, logger)
         for i, f in enumerate(files):
-            model = None if i == 0 else self.Tasks[i - 1].outputs_relative['-f']
-            self.Tasks.append(Task(self, f, input_dir, model, cache.Path, norun))
+            model = None if i == 0 else self.tasks[i - 1].outputs_relative['-f']
+            self.tasks.append(Task(self, self._logger, f, input_dir, model, cache.Path, norun))
 
 
 class Vw:
@@ -258,14 +257,15 @@ class Vw:
             result = self._run_on_dict(inputs, opts_in, opts_out, input_mode, input_dir, job_type)
             result_pd = []
             for r in result:
-                loss = r.Loss if r.Failed is None else None
-                metrics = metrics_table(r.Metrics) if r.Metrics else None
-                final_metrics = final_metrics_table(r.Metrics) if r.Metrics else None
-                results = {'!Loss': loss, '!Populated': r.Populated,
+                loss = r.loss if r.failed is None else None
+                metrics = metrics_table(r.metrics) if r.metrics is not None else None
+                final_metrics = final_metrics_table(r.metrics) if r.metrics is not None else None
+                results = {'!Loss': loss,
+                           '!Populated': r.outputs,
                            '!Metrics': metrics,
                            '!FinalMetrics': final_metrics,
                            '!Job': r}
-                result_pd.append(dict(r.OptsIn, **results))
+                result_pd.append(dict(r.opts, **results))
             return pd.DataFrame(result_pd)
         else:
             return self._run_on_dict(inputs, opts_in, opts_out, input_mode, input_dir, job_type)
