@@ -4,7 +4,7 @@ import os
 
 from threading import Lock
 
-class __LoggerCore__:
+class _LoggerCore:
     def __init__(self, impl, level, tag):
         self.level = level
         self.impl = impl
@@ -30,12 +30,12 @@ class __LoggerCore__:
         if self.level <= logging.CRITICAL:
             self.__trace__(message)
 
-    def __trace__(self, message: str):
+    def _trace(self, message: str):
         prefix = f'[{self.tag or ""}][{time.strftime("%d-%m-%Y %H:%M:%S", time.localtime(time.time()))}]'
         self.impl.trace(f'{prefix} {message}')
 
 
-class __Loggers__:
+class _Loggers:
     def __init__(self, loggers: list):
         self.Loggers = loggers
 
@@ -60,7 +60,7 @@ class __Loggers__:
             l.critical(message)
 
     def __getitem__(self, key):
-        return __Loggers__([l[key] for l in self.Loggers])
+        return _Loggers([l[key] for l in self.Loggers])
 
 
 class ConsoleLoggerImpl:
@@ -93,7 +93,7 @@ class FileLoggerUnsafe:
         with open(self.path, 'a') as f:
             f.write(f'{message}\n')
 
-class ConsoleLogger(__LoggerCore__):
+class ConsoleLogger(_LoggerCore):
     def __init__(self, level: str = 'INFO', tag=None, impl=ConsoleLoggerImpl()):
         self.LevelStr = level 
         super().__init__(impl, logging.getLevelName(self.LevelStr), tag)
@@ -104,7 +104,7 @@ class ConsoleLogger(__LoggerCore__):
     def trace(self, message: str):
         self.impl.trace(message)
 
-class FileLogger(__LoggerCore__):
+class FileLogger(_LoggerCore):
     def __init__(self, path=None, level: str = 'INFO', tag=None, impl=None):
         self.LevelStr = level
         if not impl:
@@ -117,7 +117,7 @@ class FileLogger(__LoggerCore__):
     def trace(self, message: str):
         self.impl.trace(message)
 
-class MultiFileLogger(__LoggerCore__):
+class MultiFileLogger(_LoggerCore):
     def __init__(self, folder=None, level: str = 'INFO', tag=None):
         self.LevelStr = level
         self.Folder = folder

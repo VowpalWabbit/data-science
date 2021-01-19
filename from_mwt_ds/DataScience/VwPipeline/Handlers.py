@@ -84,7 +84,7 @@ class AzureMLHandler:
             for key, value in metrics.items():
                 self.context.log(key, value)
 
-class __Handlers__:
+class _Handlers:
     def __init__(self, handlers):
         self.Handlers = handlers
 
