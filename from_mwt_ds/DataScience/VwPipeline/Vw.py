@@ -91,46 +91,44 @@ class ExecutionStatus(enum.Enum):
 
 
 class Task:
-    def __init__(self, job, file, folder, model, model_folder='', norun=False):
-        self.Job = job
-        self.File = file
-        self.Folder = folder
-        self.Logger = self.Job.Logger
-        self.Status = ExecutionStatus.NotStarted
-        self.Model = model
-        self.ModelFolder = model_folder
-        self.NoRun = norun
-        self.Status = ExecutionStatus.NotStarted
-        self.Loss = None
-        self.Populated = {}
-        self.Args = self._prepare_args(self.Job.Cache)
-        self.Result = {}
+    def __init__(self, job, input_file, input_folder, model_file, model_folder='', no_run=False):
+        self._job = job
+        self.input_file = input_file
+        self.input_folder = input_folder
+        self._logger = self._job.Logger
+        self.status = ExecutionStatus.NotStarted
+        self.model_file = model_file
+        self.model_folder = model_folder
+        self._no_run = no_run
+        self.loss = None
+        self.args = self._prepare_args(self._job.Cache)
+        self.metrics = {}
 
     def _prepare_args(self, cache):
-        opts = self.Job.OptsIn.copy()
-        opts[self.Job.InputMode] = self.File
+        opts = self._job.OptsIn.copy()
+        opts[self._job.InputMode] = self.input_file
 
-        file_full = os.path.join(self.Folder, self.File)
+        input_full = os.path.join(self.input_folder, self.input_file)
 
-        salt = os.path.getsize(file_full)
-        if self.Model:
-            opts['-i'] = self.Model
+        salt = os.path.getsize(input_full)
+        if self.model_file:
+            opts['-i'] = self.model_file
 
-        self.PopulatedRelative = {o: cache.get_rel_path(opts, o, salt) for o in self.Job.OptsOut}
-        self.Populated = {o: cache.get_path(opts, o, salt, self.Logger) for o in self.Job.OptsOut}
+        self.outputs_relative = {o: cache.get_rel_path(opts, o, salt) for o in self._job.OptsOut}
+        self.outputs = {o: cache.get_path(opts, o, salt, self._logger) for o in self._job.OptsOut}
 
-        self.StdOutPath = cache.get_path(opts, None, salt, self.Logger)
+        self.stdout_path = cache.get_path(opts, None, salt, self._logger)
 
-        if self.Model:
-            opts['-i'] = os.path.join(self.ModelFolder, self.Model)
+        if self.model_file:
+            opts['-i'] = os.path.join(self.model_folder, self.model_file)
 
-        opts[self.Job.InputMode] = file_full
-        opts = dict(opts, **self.Populated)
+        opts[self._job.InputMode] = input_full
+        opts = dict(opts, **self.outputs)
         return VwOpts.to_string(opts)
 
     def _run(self):
-        command = f'{self.Job.Path} {self.Args}'
-        self.Logger.debug(f'Executing: {command}')
+        command = f'{self._job.Path} {self.args}'
+        self._logger.debug(f'Executing: {command}')
         process = subprocess.Popen(
             command.split(),
             universal_newlines=True,
@@ -142,24 +140,24 @@ class Task:
         return error
 
     def run(self, reset):
-        result_files = list(self.Populated.values()) + [self.StdOutPath]
+        result_files = list(self.outputs.values()) + [self.stdout_path]
         not_exist = next((p for p in result_files if not os.path.exists(p)), None)
 
         if reset or not_exist:
             if not_exist:
-                self.Logger.debug(f'{not_exist} had not been found.')
-            if self.NoRun:
+                self._logger.debug(f'{not_exist} had not been found.')
+            if self._no_run:
                 raise Exception('Result is not found, and execution is deprecated')
 
             result = self._run()
-            _save(result, self.StdOutPath)
+            _save(result, self.stdout_path)
         else:
-            self.Logger.debug(f'Result of vw execution is found: {self.Args}')
-        self.Result, self.Loss = _parse_vw_output(self.stdout())
-        self.Status = ExecutionStatus.Success if self.Loss is not None else ExecutionStatus.Failed
+            self._logger.debug(f'Result of vw execution is found: {self.args}')
+        self.metrics, self.loss = _parse_vw_output(self.stdout())
+        self.status = ExecutionStatus.Success if self.loss is not None else ExecutionStatus.Failed
 
     def stdout(self):
-        return open(self.StdOutPath, 'r').readlines()
+        return open(self.stdout_path, 'r').readlines()
 
 
 class Job:
@@ -188,17 +186,17 @@ class Job:
             self.Handler.on_task_start(self, i)
             t.run(reset)
             self.Handler.on_task_finish(self, i)
-            self.Logger.debug(f'Task {i} is finished: {t.Status}')
-            if t.Status == ExecutionStatus.Failed:
+            self.Logger.debug(f'Task {i} is finished: {t.status}')
+            if t.status == ExecutionStatus.Failed:
                 self.Failed = t
                 break
-            for p in t.Populated:
-                self.Populated[p].append(t.Populated[p])
-            self.Metrics.append(t.Result)
+            for p in t.outputs:
+                self.Populated[p].append(t.outputs[p])
+            self.Metrics.append(t.metrics)
 
-        self.Status = self.Failed.Status if self.Failed else ExecutionStatus.Success
+        self.Status = self.Failed.status if self.Failed else ExecutionStatus.Success
         self.Logger.debug(f'Job is finished: {self.Status}')
-        self.Loss = self.Tasks[-1].Loss if len(self.Tasks) > 0 and self.Status == ExecutionStatus.Success else None
+        self.Loss = self.Tasks[-1].loss if len(self.Tasks) > 0 and self.Status == ExecutionStatus.Success else None
         self.Handler.on_job_finish(self)
         return self
 
@@ -216,7 +214,7 @@ class TrainJob(Job):
             opts_out.append('-f')
         super().__init__(path, cache, opts_in, opts_out, input_mode, handler, logger)
         for i, f in enumerate(files):
-            model = None if i == 0 else self.Tasks[i - 1].PopulatedRelative['-f']
+            model = None if i == 0 else self.Tasks[i - 1].outputs_relative['-f']
             self.Tasks.append(Task(self, f, input_dir, model, cache.Path, norun))
 
 
@@ -235,7 +233,7 @@ class Vw:
         return Vw(path or self.Path, cache or self.Cache, procs or self.Pool.Procs,
                   norun if norun is not None else self.NoRun,
                   reset if reset is not None else self.Reset, handlers or self.Handler.Handlers,
-                  loggers or self.Logger.Loggers)
+                  loggers or self.Logger.loggers)
 
     def _run_impl(self, inputs, opts_in, opts_out, input_mode, input_dir, job_type):
         job = job_type(self.Path, self.Cache, inputs, input_dir, opts_in, opts_out, input_mode, self.NoRun,
@@ -260,7 +258,7 @@ class Vw:
             result = self._run_on_dict(inputs, opts_in, opts_out, input_mode, input_dir, job_type)
             result_pd = []
             for r in result:
-                loss = r.Loss if r.Failed == None else None
+                loss = r.Loss if r.Failed is None else None
                 metrics = metrics_table(r.Metrics) if r.Metrics else None
                 final_metrics = final_metrics_table(r.Metrics) if r.Metrics else None
                 results = {'!Loss': loss, '!Populated': r.Populated,
@@ -279,8 +277,8 @@ class Vw:
             cache_opts = {'#cmd': VwOpts.to_cache_cmd(opts)}
         return self._run(inputs, cache_opts, ['--cache_file'], '-d', input_dir, TestJob)
 
-    def train(self, inputs, opts_in, opts_out=[], input_mode='-d', input_dir=''):
-        return self._run(inputs, opts_in, opts_out, input_mode, input_dir, TrainJob)
+    def train(self, inputs, opts_in, opts_out=None, input_mode='-d', input_dir=''):
+        return self._run(inputs, opts_in, opts_out or [], input_mode, input_dir, TrainJob)
 
-    def test(self, inputs, opts_in, opts_out=[], input_mode='-d', input_dir=''):
-        return self._run(inputs, opts_in, opts_out, input_mode, input_dir, TestJob)
+    def test(self, inputs, opts_in, opts_out=None, input_mode='-d', input_dir=''):
+        return self._run(inputs, opts_in, opts_out or [], input_mode, input_dir, TestJob)

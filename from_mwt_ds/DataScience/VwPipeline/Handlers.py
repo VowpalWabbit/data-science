@@ -71,10 +71,10 @@ class AzureMLHandler:
         if self.Folder and os.path.exists(task.StdOutPath):
             fname = f'{job.Name}.{task_idx}.stdout.txt'
             shutil.copyfile(task.StdOutPath, os.path.join(self.Folder, fname))
-        if task.Status == ExecutionStatus.Success:
-            per_example = task.Result['loss_per_example']
-            since_last = task.Result['since_last']
-            metrics = task.Result['metrics']
+        if task.status == ExecutionStatus.Success:
+            per_example = task.metrics['loss_per_example']
+            since_last = task.metrics['since_last']
+            metrics = task.metrics['metrics']
 
             for key, value in per_example.items():
                 self.context.log_row('avg_loss_by_example', count=key, loss=value)
