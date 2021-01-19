@@ -221,7 +221,7 @@ class Vw:
     def __init__(self, path, cache, procs=multiprocessing.cpu_count(), no_run=False, reset=False, handlers=None,
                  loggers=None):
         self.path = path
-        self.cache = cache
+        self._cache = cache
         self.logger = Loggers.MultiLoggers(loggers or [])
         self.pool = SeqPool() if procs == 1 else MultiThreadPool(procs)
         self.no_run = no_run
@@ -229,13 +229,13 @@ class Vw:
         self.reset = reset
 
     def _with(self, path=None, cache=None, procs=None, no_run=None, reset=None, handlers=None, loggers=None):
-        return Vw(path or self.path, cache or self.cache, procs or self.pool.Procs,
+        return Vw(path or self.path, cache or self._cache, procs or self.pool.Procs,
                   no_run if no_run is not None else self.no_run,
                   reset if reset is not None else self.reset, handlers or self.handler.Handlers,
                   loggers or self.logger.loggers)
 
     def _run_impl(self, inputs, opts, outputs, input_mode, input_dir, job_type):
-        job = job_type(self.path, self.cache, inputs, input_dir, opts, outputs, input_mode, self.no_run,
+        job = job_type(self.path, self._cache, inputs, input_dir, opts, outputs, input_mode, self.no_run,
                        self.handler, self.logger)
         return job.run(self.reset)
 
