@@ -3,6 +3,7 @@ from VwPipeline.Vw import ExecutionStatus
 import os
 import shutil
 
+
 class WidgetHandler:      
     def __init__(self, leave=False):
         self.Total = None
@@ -11,6 +12,7 @@ class WidgetHandler:
         self.Done = 0
         self.TimePerJob = 0
         self.Leave = leave
+        self.Jobs = {}
 
     def on_start(self, inputs, opts_in):
         from tqdm import tqdm_notebook as tqdm
@@ -38,12 +40,12 @@ class WidgetHandler:
         self.Jobs[job.Name].update(1)
         self.Jobs[job.Name].refresh()
 
+
 class AzureMLHandler:
     def __init__(self, context, folder=None):
         self.Folder = folder
         if self.Folder:
             os.makedirs(folder, exist_ok=True)
-        from azureml.core import Run
         self.context = context
 
     def on_start(self, inputs, opts_in):
@@ -83,6 +85,7 @@ class AzureMLHandler:
 
             for key, value in metrics.items():
                 self.context.log(key, value)
+
 
 class _Handlers:
     def __init__(self, handlers):

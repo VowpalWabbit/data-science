@@ -12,7 +12,7 @@ def to_string(opts: dict) -> str:
                      else str(opts[key]) for key in sorted(opts.keys())])
 
 
-def __dim_to_list__(d):
+def _dim_to_list(d):
     if isinstance(d, pd.DataFrame):
         return list(d.loc[:, ~d.columns.str.startswith('!')].to_dict('index').values())
     else:
@@ -25,7 +25,7 @@ def product(*dimensions: list) -> list:
     result = functools.reduce(
         lambda d1, d2: map(
             lambda t: dict(t[0], **t[1]),
-            itertools.product(__dim_to_list__(d1), __dim_to_list__(d2))
+            itertools.product(_dim_to_list(d1), _dim_to_list(d2))
         ), dimensions)
     return list(result)
 
