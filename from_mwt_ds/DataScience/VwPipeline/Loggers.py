@@ -12,23 +12,23 @@ class _LoggerCore:
 
     def debug(self, message: str):
         if self.level <= logging.DEBUG:
-            self.__trace__(message)
+            self._trace(message)
 
     def info(self, message: str):
         if self.level <= logging.INFO:
-            self.__trace__(message)
+            self._trace(message)
 
     def warning(self, message: str):
         if self.level <= logging.WARNING:
-            self.__trace__(message)
+            self._trace(message)
 
     def error(self, message: str):
         if self.level <= logging.ERROR:
-            self.__trace__(message)
+            self._trace(message)
 
     def critical(self, message: str):
         if self.level <= logging.CRITICAL:
-            self.__trace__(message)
+            self._trace(message)
 
     def _trace(self, message: str):
         prefix = f'[{self.tag or ""}][{time.strftime("%d-%m-%Y %H:%M:%S", time.localtime(time.time()))}]'
