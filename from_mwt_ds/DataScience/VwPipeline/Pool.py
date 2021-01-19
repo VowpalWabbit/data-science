@@ -2,8 +2,8 @@ import multiprocessing
 from multiprocessing.pool import ThreadPool
 
 
-def _execute(task_index_input):
-    return task_index_input[1], task_index_input[0](*task_index_input[2])
+def _execute(task_input):
+    return task_input[0](*task_input[1])
 
 
 class SeqPool:
@@ -23,9 +23,5 @@ class MultiThreadPool:
 
     def map(self, task, inputs):
         p = ThreadPool(processes=self.Procs)
-        args = [(task, index, i) for index, i in enumerate(inputs)]
-        result = p.imap_unordered(_execute, args)
-        p.close()
-        p.join()
-        outputs = [r[1] for r in sorted(result, key=lambda item: item[0])]
-        return outputs
+        args = [(task, i) for i in inputs]
+        return p.map(_execute, args)
