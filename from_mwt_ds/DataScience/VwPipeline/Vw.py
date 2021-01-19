@@ -258,8 +258,8 @@ class Vw:
             result_pd = []
             for r in result:
                 loss = r.loss if r.failed is None else None
-                metrics = metrics_table(r.metrics) if r.metrics is not None else None
-                final_metrics = final_metrics_table(r.metrics) if r.metrics is not None else None
+                metrics = metrics_table(r.metrics) if r.metrics else None
+                final_metrics = final_metrics_table(r.metrics) if r.metrics else None
                 results = {'!Loss': loss,
                            '!Outputs': r.outputs,
                            '!Metrics': metrics,
