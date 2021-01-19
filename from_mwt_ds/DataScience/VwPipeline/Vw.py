@@ -201,20 +201,20 @@ class Job:
 
 
 class TestJob(Job):
-    def __init__(self, path, cache, files, input_dir, opts_in, opts_out, input_mode, norun, handler, logger):
-        super().__init__(path, cache, opts_in, opts_out, input_mode, handler, logger)
+    def __init__(self, vw_path, cache, files, input_dir, opts, outputs, input_mode, no_run, handler, logger):
+        super().__init__(vw_path, cache, opts, outputs, input_mode, handler, logger)
         for f in files:
-            self.tasks.append(Task(self, self._logger, f, input_dir, None, cache.Path, norun))
+            self.tasks.append(Task(self, self._logger, f, input_dir, None, cache.Path, no_run))
 
 
 class TrainJob(Job):
-    def __init__(self, path, cache, files, input_dir, opts_in, opts_out, input_mode, norun, handler, logger):
-        if '-f' not in opts_out:
-            opts_out.append('-f')
-        super().__init__(path, cache, opts_in, opts_out, input_mode, handler, logger)
+    def __init__(self, vw_path, cache, files, input_dir, opts, outputs, input_mode, no_run, handler, logger):
+        if '-f' not in outputs:
+            outputs.append('-f')
+        super().__init__(vw_path, cache, opts, outputs, input_mode, handler, logger)
         for i, f in enumerate(files):
             model = None if i == 0 else self.tasks[i - 1].outputs_relative['-f']
-            self.tasks.append(Task(self, self._logger, f, input_dir, model, cache.Path, norun))
+            self.tasks.append(Task(self, self._logger, f, input_dir, model, cache.Path, no_run))
 
 
 class Vw:
