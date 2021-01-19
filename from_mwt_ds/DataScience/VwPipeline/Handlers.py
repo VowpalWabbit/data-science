@@ -7,7 +7,6 @@ import shutil
 class WidgetHandler:      
     def __init__(self, leave=False):
         self.Total = None
-        self.Total = 0
         self.Tasks = 0
         self.Done = 0
         self.TimePerJob = 0
@@ -20,7 +19,7 @@ class WidgetHandler:
         self.Tasks = len(inputs)
         self.Total = tqdm(range(len(opts_in)), desc='Total', leave=self.Leave)
 
-    def on_finish(self, result):
+    def on_finish(self, _result):
         self.Total.close()    
 
     def on_job_start(self, job):
@@ -36,7 +35,7 @@ class WidgetHandler:
     def on_task_start(self, job, task_idx):
         pass
 
-    def on_task_finish(self, job, task_idx):
+    def on_task_finish(self, job, _task_idx):
         self.Jobs[job.Name].update(1)
         self.Jobs[job.Name].refresh()
 
