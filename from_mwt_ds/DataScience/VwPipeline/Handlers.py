@@ -67,7 +67,7 @@ class AzureMLHandler:
         pass
 
     def on_task_finish(self, job, task_idx):
-        task = job.Tasks[task_idx]
+        task = job.tasks[task_idx]
         if self.Folder and os.path.exists(task.stdout_path):
             fname = f'{job.name}.{task_idx}.stdout.txt'
             shutil.copyfile(task.stdout_path, os.path.join(self.Folder, fname))
