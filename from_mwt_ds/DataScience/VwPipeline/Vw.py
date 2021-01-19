@@ -218,57 +218,57 @@ class TrainJob(Job):
 
 
 class Vw:
-    def __init__(self, path, cache, procs=multiprocessing.cpu_count(), norun=False, reset=False, handlers=None,
+    def __init__(self, path, cache, procs=multiprocessing.cpu_count(), no_run=False, reset=False, handlers=None,
                  loggers=None):
-        self.Path = path
-        self.Cache = cache
-        self.Logger = Loggers.MultiLoggers(loggers or [])
-        self.Pool = SeqPool() if procs == 1 else MultiThreadPool(procs)
-        self.NoRun = norun
-        self.Handler = Handlers.Handlers(handlers or [])
-        self.Reset = reset
+        self.path = path
+        self.cache = cache
+        self.logger = Loggers.MultiLoggers(loggers or [])
+        self.pool = SeqPool() if procs == 1 else MultiThreadPool(procs)
+        self.no_run = no_run
+        self.handler = Handlers.Handlers(handlers or [])
+        self.reset = reset
 
-    def _with(self, path=None, cache=None, procs=None, norun=None, reset=None, handlers=None, loggers=None):
-        return Vw(path or self.Path, cache or self.Cache, procs or self.Pool.Procs,
-                  norun if norun is not None else self.NoRun,
-                  reset if reset is not None else self.Reset, handlers or self.Handler.Handlers,
-                  loggers or self.Logger.loggers)
+    def _with(self, path=None, cache=None, procs=None, no_run=None, reset=None, handlers=None, loggers=None):
+        return Vw(path or self.path, cache or self.cache, procs or self.pool.Procs,
+                  no_run if no_run is not None else self.no_run,
+                  reset if reset is not None else self.reset, handlers or self.handler.Handlers,
+                  loggers or self.logger.loggers)
 
-    def _run_impl(self, inputs, opts_in, opts_out, input_mode, input_dir, job_type):
-        job = job_type(self.Path, self.Cache, inputs, input_dir, opts_in, opts_out, input_mode, self.NoRun,
-                       self.Handler, self.Logger)
-        return job.run(self.Reset)
+    def _run_impl(self, inputs, opts, outputs, input_mode, input_dir, job_type):
+        job = job_type(self.path, self.cache, inputs, input_dir, opts, outputs, input_mode, self.no_run,
+                       self.handler, self.logger)
+        return job.run(self.reset)
 
-    def _run_on_dict(self, inputs, opts_in, opts_out, input_mode, input_dir, job_type):
+    def _run_on_dict(self, inputs, opts, outputs, input_mode, input_dir, job_type):
         if not isinstance(inputs, list):
             inputs = [inputs]
-        self.Handler.on_start(inputs, opts_in)
-        if isinstance(opts_in, list):
-            args = [(inputs, point, opts_out, input_mode, input_dir, job_type) for point in opts_in]
-            result = self.Pool.map(self._run_impl, args)
+        self.handler.on_start(inputs, opts)
+        if isinstance(opts, list):
+            args = [(inputs, point, outputs, input_mode, input_dir, job_type) for point in opts]
+            result = self.pool.map(self._run_impl, args)
         else:
-            result = self._run_impl(inputs, opts_in, opts_out, input_mode, input_dir, job_type)
-        self.Handler.on_finish(result)
+            result = self._run_impl(inputs, opts, outputs, input_mode, input_dir, job_type)
+        self.handler.on_finish(result)
         return result
 
-    def _run(self, inputs, opts_in, opts_out, input_mode, input_dir, job_type):
-        if isinstance(opts_in, pd.DataFrame):
-            opts_in = list(opts_in.loc[:, ~opts_in.columns.str.startswith('!')].to_dict('index').values())
-            result = self._run_on_dict(inputs, opts_in, opts_out, input_mode, input_dir, job_type)
+    def _run(self, inputs, opts, outputs, input_mode, input_dir, job_type):
+        if isinstance(opts, pd.DataFrame):
+            opts = list(opts.loc[:, ~opts.columns.str.startswith('!')].to_dict('index').values())
+            result = self._run_on_dict(inputs, opts, outputs, input_mode, input_dir, job_type)
             result_pd = []
             for r in result:
                 loss = r.loss if r.failed is None else None
                 metrics = metrics_table(r.metrics) if r.metrics is not None else None
                 final_metrics = final_metrics_table(r.metrics) if r.metrics is not None else None
                 results = {'!Loss': loss,
-                           '!Populated': r.outputs,
+                           '!Outputs': r.outputs,
                            '!Metrics': metrics,
                            '!FinalMetrics': final_metrics,
                            '!Job': r}
                 result_pd.append(dict(r.opts, **results))
             return pd.DataFrame(result_pd)
         else:
-            return self._run_on_dict(inputs, opts_in, opts_out, input_mode, input_dir, job_type)
+            return self._run_on_dict(inputs, opts, outputs, input_mode, input_dir, job_type)
 
     def cache(self, inputs, opts, input_dir=''):
         if isinstance(opts, list):
@@ -277,8 +277,8 @@ class Vw:
             cache_opts = {'#cmd': VwOpts.to_cache_cmd(opts)}
         return self._run(inputs, cache_opts, ['--cache_file'], '-d', input_dir, TestJob)
 
-    def train(self, inputs, opts_in, opts_out=None, input_mode='-d', input_dir=''):
-        return self._run(inputs, opts_in, opts_out or [], input_mode, input_dir, TrainJob)
+    def train(self, inputs, opts, outputs=None, input_mode='-d', input_dir=''):
+        return self._run(inputs, opts, outputs or [], input_mode, input_dir, TrainJob)
 
-    def test(self, inputs, opts_in, opts_out=None, input_mode='-d', input_dir=''):
-        return self._run(inputs, opts_in, opts_out or [], input_mode, input_dir, TestJob)
+    def test(self, inputs, opts, outputs=None, input_mode='-d', input_dir=''):
+        return self._run(inputs, opts, outputs or [], input_mode, input_dir, TestJob)
