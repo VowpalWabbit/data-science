@@ -229,9 +229,9 @@ class Vw:
         self.reset = reset
 
     def _with(self, path=None, cache=None, procs=None, no_run=None, reset=None, handlers=None, loggers=None):
-        return Vw(path or self.path, cache or self._cache, procs or self.pool.Procs,
+        return Vw(path or self.path, cache or self._cache, procs or self.pool.procs,
                   no_run if no_run is not None else self.no_run,
-                  reset if reset is not None else self.reset, handlers or self.handler.Handlers,
+                  reset if reset is not None else self.reset, handlers or self.handler.handlers,
                   loggers or self.logger.loggers)
 
     def _run_impl(self, inputs, opts, outputs, input_mode, input_dir, job_type):
