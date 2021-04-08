@@ -60,8 +60,9 @@ def _parse_vw_output(lines):
 
 
 def _metrics_table(metrics, name):
-    return pd.DataFrame([{'n': int(k), name: float(metrics[name][k])}
-                         for k in metrics[name]]).set_index('n')
+    return pd.DataFrame({'n': [int(k) for k in metrics[name]],
+                        name: [float(metrics[name][k]) for k in metrics[name]]
+                        }).set_index('n')
 
 
 def metrics_table(metrics):
