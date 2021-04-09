@@ -60,8 +60,9 @@ def _parse_vw_output(lines):
 
 
 def _metrics_table(metrics, name):
-    return pd.DataFrame([{'n': int(k), name: float(metrics[name][k])}
-                         for k in metrics[name]]).set_index('n')
+    return pd.DataFrame({'n': [int(k) for k in metrics[name]],
+                        name: [float(metrics[name][k]) for k in metrics[name]]
+                        }).set_index('n')
 
 
 def metrics_table(metrics):
@@ -199,6 +200,15 @@ class Job:
         self._handler.on_job_finish(self)
         return self
 
+    def to_dict(self):
+        loss = self.loss if self.failed is None else None
+        metrics = metrics_table(self.metrics) if self.metrics else None
+        final_metrics = final_metrics_table(self.metrics) if self.metrics else None
+        return dict(self.opts, **{'!Loss': loss,
+                '!Outputs': self.outputs,
+                '!Metrics': metrics,
+                '!FinalMetrics': final_metrics,
+                '!Job': self})
 
 class TestJob(Job):
     def __init__(self, vw_path, cache, files, input_dir, opts, outputs, input_mode, no_run, handler, logger):
@@ -256,16 +266,8 @@ class Vw:
             opts = list(opts.loc[:, ~opts.columns.str.startswith('!')].to_dict('index').values())
             result = self._run_on_dict(inputs, opts, outputs, input_mode, input_dir, job_type)
             result_pd = []
-            for r in result:
-                loss = r.loss if r.failed is None else None
-                metrics = metrics_table(r.metrics) if r.metrics else None
-                final_metrics = final_metrics_table(r.metrics) if r.metrics else None
-                results = {'!Loss': loss,
-                           '!Outputs': r.outputs,
-                           '!Metrics': metrics,
-                           '!FinalMetrics': final_metrics,
-                           '!Job': r}
-                result_pd.append(dict(r.opts, **results))
+            for t in result:
+                result_pd.append(t.to_dict())
             return pd.DataFrame(result_pd)
         else:
             return self._run_on_dict(inputs, opts, outputs, input_mode, input_dir, job_type)
