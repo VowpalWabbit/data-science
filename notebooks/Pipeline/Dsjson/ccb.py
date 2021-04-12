@@ -4,20 +4,17 @@ import uuid
 import pandas as pd
 from collections import ChainMap
 
-def _is_decision(line):
+def is_decision(line):
     return not line.startswith('{"RewardValue"')
-
-def _get_or(obj, field, default):
-    return default if field not in obj else obj[field]
             
 class Processor:
     default_top_processor = lambda o: {
         'Timestamp': o['Timestamp'],
-        '_skipLearn': _get_or(o, '_skipLearn', False),
-        'pdrop': _get_or(o, 'pdrop', 0.0)}
+        '_skipLearn': o.get('_skipLearn', False),
+        'pdrop': o.get('pdrop', 0.0)}
     
     default_slot_processor = lambda o: {
-        '_inc': _get_or(o, '_inc', [])}
+        '_inc': o.get('_inc', [])}
     
     default_outcome_processor = lambda o: {
         '_label_cost': o['_label_cost'],
@@ -33,7 +30,7 @@ class Processor:
         '_outcomes': [default_outcome_processor]
     }
 
-    filters = [_is_decision]
+    filters = [is_decision]
 
     def __init__(self, processors = None, filters = None):
         self.processors = processors if processors is not None else self.processors
@@ -67,7 +64,9 @@ class Processor:
         return lines
 
 
-class Predictor:   
+class Predictor: 
+    filters = [is_decision]
+
     indexers = {
         't': lambda o: o['Timestamp']
     }

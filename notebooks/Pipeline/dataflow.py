@@ -4,7 +4,7 @@ import pandas as pd
 from itertools import chain
 from pathlib import Path
 
-
+from Pipeline.progress import dummy_progress
 
 class FileSizeHasher:
     extension = 'size'
@@ -41,11 +41,12 @@ class FilesPipeline:
         files,
         processor,
         path_gen=None,
-        process=False):
+        process=False,
+        progress=dummy_progress()):
         path_gen = path_gen or (lambda f: f'{f}.{processor.__name__}') 
         result = []
+        progress.on_start(len(files))
         for path_in in files:
-            print(f'Processing {path_in}...')
             path_out = path_gen(path_in)
             Path(path_out).parent.mkdir(parents=True, exist_ok=True)
             if process or not self._is_in_sync(path_in, path_out):
@@ -55,6 +56,8 @@ class FilesPipeline:
                 self._sync(path_in, path_out)
             if Path(path_out).exists():
                 result.append(path_out)
+            progress.on_step()
+        progress.on_finish() 
         return result
 
 def files_2_csvs(
