@@ -1,4 +1,6 @@
+import Pipeline.cb.estimators as cb
 from itertools import zip_longest
+import pandas as pd
 
 def grouper(iterable, n, fillvalue=None):
     args = [iter(iterable)] * n
@@ -19,55 +21,67 @@ def _aggregate_batch(batch, agg_factories: dict):    # agg_factories: map from p
                 result[(policy, name, metric)] = agg_result[metric]
     return result
 
-class ips:
-    slots = None
-    def __init__(self, slots = None, r = 0, n = 0):
-        self.slots = set(slots) if slots else None
-        self.r = 0
-        self.n = 0
+class cb_estimator:
+    def __init__(self, impl, slots=[]):
+        self._impl = impl
+        self.slots = set(slots)
+
+    @property
+    def slots(self):
+        return self.__slots
+
+    @slots.setter
+    def slots(self, slots):
+        self.__slots = set(slots)
+        self.__name = f'ccb|{self._impl.name()}|{",".join([str(s) for s in self.slots])}'
 
     def add(self, r, p_log, p, n = 1):
-        slots = self.slots if self.slots else range(len(r))
+        slots = self.slots if any(self.slots) else range(len(r))
         for s in slots:
-            self.r += n * r[s] * p[s] / p_log[s]
-            self.n += n
+            self._impl.add(r[s], p_log[s], p[s], n)
 
     def __add__(self, other):
-        if self.slots != other.slots:
-            raise Exception('cannot aggregate ips over different set of slots')
+        if self.slots != other.slots or type(self) != type(other):
+            raise Exception('Estimator type mismatch')
 
-        x = self.r + other.r
-        y = self.n + other.n
-        return Point(x, y)
+        return cb_estimator(self._impl + other._impl, self.slots, )
 
-    def get(self):
-        return {'e': 0 if self.n == 0 else self.r / self.n}
+    def name(self):
+        return self.__name
 
-class snips:
-    slots = None
-    def __init__(self, slots = None):
-        self.slots = slots
-        self.r = 0
-        self.n = 0
+    def save(self):
+        return self._impl.save()
 
-    def add(self, r, p_log, p, n = 1):
-        slots = self.slots if self.slots else range(len(r))
-        for s in slots:
-            self.r += n * r[s] * p[s] / p_log[s]
-            self.n += n * p[s] / p_log[s]
+    def load(self, o):
+        self._impl.load(o)
 
     def get(self):
-        return {'e': 0 if self.n == 0 else self.r / self.n}
+        return self._impl.get()   
 
-def estimate(predictions, agg_factories, window, rolling=False):
+def create(name, desc=None):
+    parts = name.split('|')
+    result = None
+    if parts[0] != 'ccb':
+        raise Exception(f'Unknown estimator: {name}') 
+    slots = set([int(s) for s in parts[2].split(',')])
+    if parts[1] == 'ips':
+        result = cb_estimator(cb.ips(), slots)
+    elif parts[1] == 'snips':
+        result = cb_estimator(cb.snips(), slots)
+    else:
+        raise Exception(f'Unknown estimator: {name}')  
+    if desc:
+        result.load(desc)
+    return result
+
+def estimate(predictions, est_factories, window, rolling=False):
     if not rolling:
         if isinstance(window, int):
             for batch_id, batch in enumerate(grouper(predictions, window)):
-                agg = _aggregate_batch(batch, agg_factories)
+                agg = _aggregate_batch(batch, est_factories)
                 agg['i'] = batch_id * window
                 yield agg
         else:
-            ...
+            raise Exception('not supported')
     else:
-        ...
-
+        raise Exception('not supported')

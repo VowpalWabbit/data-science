@@ -1,0 +1,73 @@
+import pandas as pd
+
+def _serialize_estimator_table(df):
+    result = []
+    columns = df.columns
+    for i, l in df.iterrows():
+        row = {}
+        for c in columns:
+            row[c] = l[c].save()
+        result.append(row)
+    result = pd.DataFrame(result)
+    result.index = df.index
+    return result
+
+def evaluate(df):
+    result = []
+    columns = df.columns
+    for i, l in df.iterrows():
+        row = {}
+        for c in columns:
+            est = l[c].get()
+            for k,v in est.items():
+                row[c + (k,)] = v
+        result.append(row)
+    result = pd.DataFrame(result)
+    result.index = df.index
+    return result
+
+class Estimator:
+    def __init__(self, factory, estimators, online_estimator):
+        self.factory = factory
+        self.estimators = estimators
+        self.online_estimator = online_estimator
+
+    
+    def _estimate(self, prediction): # estimators: map from policy to list of estimator description
+        result = {'t': pd.to_datetime(prediction['i']['t'])}
+        result[('online', self.online_estimator)] = self.factory(self.online_estimator)
+        result[('online', self.online_estimator)].add(prediction['r'], prediction['p'], prediction['p'], prediction['n'])
+
+        for p in self.estimators:
+            for e in self.estimators[p]:
+                result[(p,e)]=self.factory(e)
+
+        for p in prediction['b']:
+            for e in self.estimators[p]:
+                result[(p,e)].add(prediction['r'], prediction['p'], prediction['b'][p], prediction['n'])
+        
+        return result
+
+    def preestimate(self, predictions, window):
+        if isinstance(window, str):
+            df = pd.DataFrame(map(lambda p: self._estimate(p), predictions)).set_index('t').resample(window).sum()
+            return _serialize_estimator_table(df)
+        else:
+            raise Exception('not supported')
+
+    def read_preestimate(self, path):
+        from ast import literal_eval as make_tuple
+        df = pd.read_csv(path).set_index('t')
+        df.columns = [make_tuple(c) for c in df.columns]
+
+        result = []
+        columns = df.columns
+        for i, l in df.iterrows():
+            row = {}
+            for c in columns:
+                row[c] = self.factory(c[1], l[c])
+            result.append(row)
+        result = pd.DataFrame(result)
+        result.index = df.index
+        return result
+
