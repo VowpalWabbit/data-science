@@ -66,15 +66,17 @@ class FilesPipeline:
         path_gen=None,
         process=False,
         progress=dummy_progress(),
-        index=True):
+        index=True,
+        openers = None):
         path_gen = path_gen or (lambda f: f'{f}.{processor.__name__}') 
         result = []
         progress.on_start(len(files))
-        for path_in in files:
+        for i, path_in in enumerate(files):
+            opener = openers[i] if openers else lambda p: map(lambda l: json.loads(l), open(p))
             path_out = path_gen(path_in)
             Path(path_out).parent.mkdir(parents=True, exist_ok=True)
             if process or not self._is_in_sync(path_in, path_out):
-                df = processor(map(lambda l: json.loads(l), open(path_in)))
+                df = processor(opener(path_in))
                 df.to_csv(path_out, index=index)
                 self._sync(path_in, path_out)
             if Path(path_out).exists():
