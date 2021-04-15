@@ -50,8 +50,9 @@ class Estimator:
 
     def preestimate(self, predictions, window):
         if isinstance(window, str):
-            df = pd.DataFrame(map(lambda p: self._estimate(p), predictions)).set_index('t').resample(window).sum()
-            return _serialize_estimator_table(df)
+            df = pd.DataFrame(map(lambda p: self._estimate(p), predictions)).set_index('t')
+            df.columns = [str(c) for c in df.columns]
+            return _serialize_estimator_table(df.resample(window).sum())
         else:
             raise Exception('not supported')
 

@@ -65,7 +65,8 @@ class FilesPipeline:
         processor,
         path_gen=None,
         process=False,
-        progress=dummy_progress()):
+        progress=dummy_progress(),
+        index=True):
         path_gen = path_gen or (lambda f: f'{f}.{processor.__name__}') 
         result = []
         progress.on_start(len(files))
@@ -74,7 +75,7 @@ class FilesPipeline:
             Path(path_out).parent.mkdir(parents=True, exist_ok=True)
             if process or not self._is_in_sync(path_in, path_out):
                 df = processor(open(path_in))
-                df.to_csv(path_out, index=False)
+                df.to_csv(path_out, index=index)
                 self._sync(path_in, path_out)
             if Path(path_out).exists():
                 result.append(path_out)
