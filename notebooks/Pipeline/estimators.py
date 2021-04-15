@@ -13,7 +13,9 @@ def _serialize_estimator_table(df):
     return result
 
 def evaluate(df):
+    from ast import literal_eval as make_tuple
     result = []
+    df.columns = [make_tuple(c) for c in df.columns]
     columns = df.columns
     for i, l in df.iterrows():
         row = {}
@@ -70,5 +72,6 @@ class Estimator:
             result.append(row)
         result = pd.DataFrame(result)
         result.index = df.index
+        result.columns = [str(c) for c in result.columns]
         return result
 
