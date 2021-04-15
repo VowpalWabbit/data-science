@@ -60,7 +60,7 @@ class FilesPipeline:
         progress.on_finish() 
         return result
 
-    def lines_2_csv(self,
+    def ndjson_2_csv(self,
         files,
         processor,
         path_gen=None,
@@ -74,7 +74,7 @@ class FilesPipeline:
             path_out = path_gen(path_in)
             Path(path_out).parent.mkdir(parents=True, exist_ok=True)
             if process or not self._is_in_sync(path_in, path_out):
-                df = processor(open(path_in))
+                df = processor(map(lambda l: json.loads(l), open(path_in)))
                 df.to_csv(path_out, index=index)
                 self._sync(path_in, path_out)
             if Path(path_out).exists():

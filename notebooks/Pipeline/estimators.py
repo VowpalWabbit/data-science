@@ -58,7 +58,7 @@ class Estimator:
 
     def read_preestimate(self, path):
         from ast import literal_eval as make_tuple
-        df = pd.read_csv(path).set_index('t')
+        df = pd.read_csv(path, parse_dates=['t']).set_index('t')
         df.columns = [make_tuple(c) for c in df.columns]
 
         result = []
