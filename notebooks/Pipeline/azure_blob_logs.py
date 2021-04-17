@@ -170,7 +170,7 @@ def sync_logs(loop, local_root, latest_folder_only=True, progress=dummy_progress
     import itertools
     from pathlib import Path
     ws = Workspace.from_config()
-    logs = connect(ws, loop, Path(local_root).joinpath('original'), progress=progress)
+    logs = connect(ws, loop, local_root, progress=progress)
     models = logs.get_models()
     if latest_folder_only:
         models = models[-1:]
