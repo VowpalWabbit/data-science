@@ -12,6 +12,19 @@ class FileSizeHasher:
     def evaluate(self, path):
         return Path(path).stat().st_size
 
+class Step:
+    hasher = FileSizeHasher()
+    def __init__(self, impl, path_gen):
+        self._impl = impl
+        self._path_gen = path_gen
+
+    def output(self, path):
+        return self._path_gen(path)
+
+    def run(self, path):
+        Path(self.output(path)).parent.mkdir(parents=True, exist_ok=True)
+
+
 class FilesPipeline:
     hasher = FileSizeHasher()
     
@@ -78,6 +91,53 @@ class FilesPipeline:
             if process or not self._is_in_sync(path_in, path_out):
                 df = processor(opener(path_in))
                 df.to_csv(path_out, index=index)
+                self._sync(path_in, path_out)
+            if Path(path_out).exists():
+                result.append(path_out)
+            progress.on_step()
+        progress.on_finish() 
+        return result
+
+    def lines_2_df_pickle(self,
+        files,
+        processor,
+        path_gen=None,
+        process=False,
+        progress=dummy_progress()):
+        path_gen = path_gen or (lambda f: f'{f}.{processor.__name__}') 
+        result = []
+        progress.on_start(len(files))
+        for path_in in files:
+            path_out = path_gen(path_in)
+            Path(path_out).parent.mkdir(parents=True, exist_ok=True)
+            if process or not self._is_in_sync(path_in, path_out):
+                df = processor(open(path_in))
+                df.to_pickle(path_out)
+                self._sync(path_in, path_out)
+            if Path(path_out).exists():
+                result.append(path_out)
+            progress.on_step()
+        progress.on_finish() 
+        return result
+
+    def df_pickle_2_df_pickle(self,
+        files,
+        processor,
+        path_gen=None,
+        process=False,
+        progress=dummy_progress(),
+        index=True,
+        openers = None):
+        path_gen = path_gen or (lambda f: f'{f}.{processor.__name__}') 
+        result = []
+        progress.on_start(len(files))
+        for i, path_in in enumerate(files):
+            opener = openers[i] if openers else lambda p: pd.read_pickle(p)
+            path_out = path_gen(path_in)
+            Path(path_out).parent.mkdir(parents=True, exist_ok=True)
+            if process or not self._is_in_sync(path_in, path_out):
+                df = processor(opener(path_in))
+                df.to_pickle(path_out)
                 self._sync(path_in, path_out)
             if Path(path_out).exists():
                 result.append(path_out)
