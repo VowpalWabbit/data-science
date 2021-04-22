@@ -26,6 +26,10 @@ class Execution:
         output_hash = self._load_hash(self.output)
         return input_hash and output_hash and input_hash == output_hash
 
+    def _sync(self):
+        with open(f'{self.output}.{self.hasher.extension}','w') as f:
+            f.write(str(self.hasher.evaluate(self.input)))
+
     def _load_hash(self, path):
         hash_path = f'{path}.{self.hasher.extension}'
         if not Path(hash_path).exists():
@@ -43,6 +47,7 @@ class Execution:
         return None
             
     def close(self):
+        self._sync()
         return self.output if Path(self.output).exists() else None       
 
 class Fileset:
