@@ -29,10 +29,11 @@ def evaluate(df):
     return result
 
 class Estimator:
-    def __init__(self, factory, estimators, online_estimator = None):
+    def __init__(self, factory, estimators, online_estimator = None, window='5min'):
         self.factory = factory
         self.estimators = estimators
         self.online_estimator = online_estimator
+        self.window = window
 
     
     def _estimate(self, prediction): # estimators: map from policy to list of estimator description
@@ -58,9 +59,9 @@ class Estimator:
             result[('online', self.online_estimator)].add(prediction['r'], prediction['p'], prediction['p'], prediction['n'])
 
         for p in baseline_columns:
-            for e in self.estimators[p[1]]:
-                result[p + (e,)]=self.factory(e)
-                result[p + (e,)].add(prediction['r'], prediction['p'], prediction[p], prediction['n'])
+            for e in self.estimators[p]:
+                result[(p,) + (e,)]=self.factory(e)
+                result[(p,) + (e,)].add(prediction['r'], prediction['p'], prediction[('b', p)], prediction['n'])
         
         return result
 
@@ -72,12 +73,12 @@ class Estimator:
         else:
             raise Exception('not supported')
 
-    def preestimate_df(self, predictions_df, window):
-        if isinstance(window, str):
-            baselines = [c for c in predictions_df.columns if isinstance(c, tuple) and c[0]=='b']
+    def preestimate_df(self, predictions_df):
+        if isinstance(self.window, str):
+            baselines = [c[1] for c in predictions_df.columns if isinstance(c, tuple) and c[0]=='b']
             result = pd.DataFrame(map(lambda i_p: self._estimate_df(i_p[1], baselines), predictions_df.iterrows())).set_index('t')
             result.columns = [str(c) for c in result.columns]
-            result.resample(window).sum()
+            result.resample(self.window).sum()
             return result
         else:
             raise Exception('not supported')
