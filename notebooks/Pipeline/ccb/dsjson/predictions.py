@@ -2,6 +2,13 @@ import Pipeline.ccb.dsjson.filters as filters
 import json
 import pandas as pd
 
+# +
+def json_load(line):
+    try:
+        return json.loads(line)
+    except:
+        return json.loads(line.replace('\x01', ''))
+
 class Predictor: 
     filters = [filters.is_decision]
     
@@ -15,7 +22,7 @@ class Predictor:
         self.baselines = baselines if baselines is not None else self.baselines
 
     def _decision_2_prediction(self, line):
-        parsed = json.loads(line)
+        parsed = json_load(line)
         result = {
             't': [],
             'a': [],
@@ -37,7 +44,7 @@ class Predictor:
         return json.dumps(result)
 
     def _decision_2_prediction_df(self, line, result):
-        parsed = json.loads(line)
+        parsed = json_load(line)
         a = []
         p = []
         r = []

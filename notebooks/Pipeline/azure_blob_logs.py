@@ -165,7 +165,7 @@ def get_cloud_logs(loop, local_root, latest_folder_only=True, progress=dummy_pro
         cloud_files += itertools.chain.from_iterable([logs.get_chunks(model, d) for d in dates[model]])
     return cloud_files
 
-def sync_logs(loop, local_root, latest_folder_only=True, progress=dummy_progress()):
+def sync_logs(loop, local_root, latest_folder_only=True, progress=dummy_progress(), days = 31):
     from azureml.core import Workspace
     import itertools
     from pathlib import Path
@@ -174,7 +174,7 @@ def sync_logs(loop, local_root, latest_folder_only=True, progress=dummy_progress
     models = logs.get_models()
     if latest_folder_only:
         models = models[-1:]
-    dates = {model: logs.get_dates(model) for model in models}
+    dates = {model: [d for d in logs.get_dates(model) if d > datetime.date.today() - datetime.timedelta(days)] for model in models}
     cloud_files = []
     for model in models:
         cloud_files += itertools.chain.from_iterable([logs.get_chunks(model, d) for d in dates[model]])

@@ -2,6 +2,13 @@ import Pipeline.ccb.dsjson.filters as filters
 import json
 from collections import ChainMap
 
+# +
+def json_load(line):
+    try:
+        return json.loads(line)
+    except:
+        return json.loads(line.encode('utf-8','ignore'))
+
 class Processor:
     default_top_processor = lambda o: {
         'Timestamp': o['Timestamp'],
@@ -32,7 +39,7 @@ class Processor:
         self.filters = filters if filters is not None else self.filters
 
     def _process_decision(self, line):
-        parsed = json.loads(line)
+        parsed = json_load(line)
         top = dict(ChainMap(*[p(parsed) for p in self.processors['/']]))
         shared = dict(ChainMap(*[p(parsed['c']) for p in self.processors['c']]))
 
