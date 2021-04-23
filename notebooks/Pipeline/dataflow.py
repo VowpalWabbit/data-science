@@ -118,23 +118,6 @@ class CsvFiles(Fileset):
     def open(self):
         return pd.concat([self.read(i) for i in range(len(self.files))])
 
-class VwPredicionsFiles(Fileset):
-    def _read(self, i, path):
-        print(f'{i}: {path}')
-        labels = self.label_fileset.read(i)
-        labels['_tmp'] = list(predictions.lines_2_slots(open(path)))
-        labels[('b', policy_name)] = labels.apply(lambda r: [ap[1][ap[0]] for ap in zip(r['a'], r['_tmp'])], axis = 1)
-        return labels[['t', 'a', 'r', 'p', 'n', ('b', policy_name)]]        
-
-    @staticmethod
-    def _write(path, o):
-        raise Exception('Not supported')
-
-    def __init__(self, files, label_fileset, policy_name):
-        super().__init__(files=files, reader=self._read, writer=VwPredicionsFiles._write)
-        self.label_fileset = label_fileset
-        self.policy_name = policy_name
-
 class FilesPipeline:
     hasher = FileSizeHasher()
     
