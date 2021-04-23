@@ -56,6 +56,9 @@ class Fileset:
         self.reader = reader
         self.writer = writer
 
+    def read(self, i):
+        return self.reader(i, self.files[i])
+
     def init(self, executions, progress=tqdm_progress()):
         self.files = []
         progress.on_start(len(executions))
@@ -70,53 +73,50 @@ class Fileset:
 
     def process(self, processor, path_gen=None, process=False, hasher = FileSizeHasher()):
         path_gen = path_gen or (lambda f: f'{f}.{processor.__name__}') 
-        result = []
-        for path_in in self.files:
-            result.append(Execution(self.reader, path_in, hasher, path_gen, processor, process))
-        return result
+        return [Execution(lambda p, i=i: self.reader(i, p), p, hasher, path_gen, processor, process) for i, p in enumerate(self.files)]
 
 class MultilineFiles(Fileset):
     @staticmethod
-    def read(path):
+    def _read(i, path):
         return open(path)
 
     @staticmethod
-    def write(path, lines):
+    def _write(path, lines):
         with open(path, 'w') as f:
             f.writelines(lines)
 
     def __init__(self, files = []):
-        super().__init__(files=files, reader=MultilineFiles.read, writer=MultilineFiles.write)  
+        super().__init__(files=files, reader=MultilineFiles._read, writer=MultilineFiles._write)  
 
 class PickleFiles(Fileset):
     @staticmethod
-    def read(path):
+    def _read(i, path):
         return pd.read_pickle(path)
 
     @staticmethod
-    def write(path, df):
+    def _write(path, df):
         df.to_pickle(path)
 
     def __init__(self, files = []):
-        super().__init__(files=files, reader=PickleFiles.read, writer=PickleFiles.write)  
+        super().__init__(files=files, reader=PickleFiles._read, writer=PickleFiles._write)  
 
     def open(self):
-        return pd.concat([self.read(p) for p in self.files])
+        return pd.concat([self.read(i) for i in range(len(self.files))])
 
 class CsvFiles(Fileset):
     @staticmethod
-    def read(path):
+    def _read(i, path):
         return pd.read_csv(path)
 
     @staticmethod
-    def write(path, df):
+    def _write(path, df):
         df.to_csv(path, index=False)
 
     def __init__(self, files = []):
-        super().__init__(files=files, reader=CsvFiles.read, writer=CsvFiles.write) 
+        super().__init__(files=files, reader=CsvFiles._read, writer=CsvFiles._write) 
 
     def open(self):
-        return pd.concat([self.read(p) for p in self.files])
+        return pd.concat([self.read(i) for i in range(len(self.files))])
 
 class FilesPipeline:
     hasher = FileSizeHasher()
