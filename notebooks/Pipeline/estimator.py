@@ -1,8 +1,7 @@
 import pandas as pd
 
 class Estimator:
-    def __init__(self, factory, estimators, online_estimator = None, window='5min'):
-        self.factory = factory
+    def __init__(self, estimators, online_estimator = None, window='5min'):
         self.estimators = estimators
         self.online_estimator = online_estimator
         self.window = window
@@ -10,12 +9,12 @@ class Estimator:
     def _estimate(self, prediction, baseline_columns): # estimators: map from policy to list of estimator description
         result = {'t': pd.to_datetime(prediction['t'])}
         if self.online_estimator:
-            result[('online', self.online_estimator)] = self.factory(self.online_estimator)
-            result[('online', self.online_estimator)].add(prediction['r'], prediction['p'], prediction['p'], prediction['n'])
+            result['online'] = self.online_estimator()
+            result['online'].add(prediction['r'], prediction['p'], prediction['p'], prediction['n'])
 
         for p in baseline_columns:
             for e in self.estimators[p]:
-                result[(p,) + (e,)]=self.factory(e)
+                result[(p,) + (e,)]=self.estimators[p][e]()
                 result[(p,) + (e,)].add(prediction['r'], prediction['p'], prediction[('b', p)], prediction['n'])
         
         return result

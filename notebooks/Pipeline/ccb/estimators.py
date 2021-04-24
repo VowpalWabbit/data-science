@@ -36,22 +36,4 @@ class cb_estimator:
         self._impl.load(o)
 
     def get(self, *args, **kwargs):
-        return self._impl.get(*args, **kwargs)   
-
-def create(name, desc=None):
-    parts = name.split('|')
-    result = None
-    if parts[0] != 'ccb':
-        raise Exception(f'Unknown estimator: {name}') 
-    slots = set([int(s) for s in parts[2].split(',')])
-    if parts[1] == 'ips':
-        result = cb_estimator(cb.ips(), slots)
-    elif parts[1] == 'snips':
-        result = cb_estimator(cb.snips(), slots)
-    elif parts[1] == 'ips_snips':
-        result = cb_estimator(cb.ips_snips(), slots)
-    else:
-        raise Exception(f'Unknown estimator: {name}')  
-    if desc:
-        result.load(desc)
-    return result
+        return self._impl.get(*args, **kwargs) 
