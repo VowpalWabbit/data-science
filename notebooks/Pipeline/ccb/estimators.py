@@ -1,25 +1,5 @@
 import Pipeline.cb.estimators as cb
-from itertools import zip_longest
 import pandas as pd
-
-def grouper(iterable, n, fillvalue=None):
-    args = [iter(iterable)] * n
-    return zip_longest(*args, fillvalue=fillvalue)
-
-def _aggregate_batch(batch, agg_factories: dict):    # agg_factories: map from policy to map from name to agg factory
-    aggs = {policy: {name: agg_factories[policy][name]() for name in agg_factories[policy]} for policy in agg_factories}
-    for event in batch:
-        if event:
-            for policy in aggs:
-                for name in aggs[policy]:
-                    aggs[policy][name].add(event['r'], event['p'], event['b'][policy])
-    result = {}
-    for policy in aggs:
-        for name in aggs[policy]:
-            agg_result = aggs[policy][name].get()
-            for metric in agg_result:
-                result[(policy, name, metric)] = agg_result[metric]
-    return result
 
 class cb_estimator:
     def __init__(self, impl, slots=[]):
@@ -75,15 +55,3 @@ def create(name, desc=None):
     if desc:
         result.load(desc)
     return result
-
-def estimate(predictions, est_factories, window, rolling=False):
-    if not rolling:
-        if isinstance(window, int):
-            for batch_id, batch in enumerate(grouper(predictions, window)):
-                agg = _aggregate_batch(batch, est_factories)
-                agg['i'] = batch_id * window
-                yield agg
-        else:
-            raise Exception('not supported')
-    else:
-        raise Exception('not supported')
