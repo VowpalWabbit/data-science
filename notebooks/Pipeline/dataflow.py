@@ -50,6 +50,11 @@ class Execution:
         self._sync()
         return self.output if Path(self.output).exists() else None       
 
+def _fork(func, args):
+    from multiprocess import Pool
+    with Pool(1) as p:
+        return p.apply(func, args)
+
 class Fileset:
     def __init__(self, files=[], reader=None, writer=None):
         self.files = files
@@ -59,15 +64,30 @@ class Fileset:
     def read(self, i):
         return self.reader(i, self.files[i])
 
-    def init(self, executions, progress=tqdm_progress()):
-        self.files = []
-        progress.on_start(len(executions))
-        for execution in executions:
+    def _process_execution(self, execution, progress, fork = False):
+        def _run(execution):
             result = execution.run()
             if result is not None:
                 self.writer(execution.output, result)
-            self.files.append(execution.close())
-            progress.on_step()
+            return execution.close()
+        if fork:
+            result = _fork(_run, [execution])
+        else:
+            result = _run(execution)
+        progress.on_step()
+        return result
+
+    def init(self, executions, progress=tqdm_progress(), procs=1):
+        self.files = []
+        progress.on_start(len(executions))
+        if procs == 1:
+            for execution in executions:
+                self.files.append(self._process_execution(execution, progress))
+        else:
+            import multiprocessing
+            from multiprocessing.pool import ThreadPool
+            with ThreadPool(procs) as pool:
+                self.files = pool.starmap(self._process_execution, [(e, progress, True) for e in executions])
         progress.on_finish() 
         return self
 
