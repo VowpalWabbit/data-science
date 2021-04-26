@@ -24,8 +24,7 @@ class Estimator:
             baselines = [c[1] for c in predictions_df.columns if isinstance(c, tuple) and c[0]=='b']
             result = pd.DataFrame(map(lambda i_p: self._estimate(i_p[1], baselines), predictions_df.iterrows())).set_index('t')
             result.columns = [str(c) for c in result.columns]
-            result.resample(self.window).sum()
-            return result
+            return result.resample(self.window).sum()
         else:
             raise Exception('not supported')
 
