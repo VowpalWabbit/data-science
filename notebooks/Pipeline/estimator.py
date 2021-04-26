@@ -19,7 +19,7 @@ class Estimator:
         
         return result
 
-    def preestimate(self, predictions_df):
+    def estimate(self, predictions_df):
         if isinstance(self.window, str):
             baselines = [c[1] for c in predictions_df.columns if isinstance(c, tuple) and c[0]=='b']
             result = pd.DataFrame(map(lambda i_p: self._estimate(i_p[1], baselines), predictions_df.iterrows())).set_index('t')
