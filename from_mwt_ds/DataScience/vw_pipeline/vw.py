@@ -3,9 +3,10 @@ import os
 import pandas as pd
 import enum
 
-from VwPipeline.Pool import SeqPool, MultiThreadPool
-from VwPipeline import VwOpts
-from VwPipeline import Loggers, Handlers
+from vw_pipeline.pool import SeqPool, MultiThreadPool
+from vw_pipeline import vw_opts
+from vw_pipeline.loggers import MultiLoggers
+from vw_pipeline.handlers import Handlers
 
 import multiprocessing
 
@@ -125,7 +126,7 @@ class Task:
 
         opts[self._job.input_mode] = input_full
         opts = dict(opts, **self.outputs)
-        return VwOpts.to_string(opts)
+        return vw_opts.to_string(opts)
 
     def _run(self):
         command = f'{self._job.vw_path} {self.args}'
@@ -166,7 +167,7 @@ class Job:
         self.vw_path = vw_path
         self.cache = cache
         self.opts = opts
-        self.name = VwOpts.to_string({k: opts[k] for k in opts.keys() - {'#base'}})
+        self.name = vw_opts.to_string({k: opts[k] for k in opts.keys() - {'#base'}})
         self._logger = logger[self.name]
         self.input_mode = input_mode
         self.failed = None
@@ -232,10 +233,10 @@ class Vw:
                  loggers=None):
         self.path = path
         self._cache = cache
-        self.logger = Loggers.MultiLoggers(loggers or [])
+        self.logger = MultiLoggers(loggers or [])
         self.pool = SeqPool() if procs == 1 else MultiThreadPool(procs)
         self.no_run = no_run
-        self.handler = Handlers.Handlers(handlers or [])
+        self.handler = Handlers(handlers or [])
         self.reset = reset
 
     def _with(self, path=None, cache=None, procs=None, no_run=None, reset=None, handlers=None, loggers=None):
@@ -274,9 +275,9 @@ class Vw:
 
     def cache(self, inputs, opts, input_dir=''):
         if isinstance(opts, list):
-            cache_opts = [{'#cmd': o_dedup} for o_dedup in set([VwOpts.to_cache_cmd(o) for o in opts])]
+            cache_opts = [{'#cmd': o_dedup} for o_dedup in set([vw_opts.to_cache_cmd(o) for o in opts])]
         else:
-            cache_opts = {'#cmd': VwOpts.to_cache_cmd(opts)}
+            cache_opts = {'#cmd': vw_opts.to_cache_cmd(opts)}
         return self._run(inputs, cache_opts, ['--cache_file'], '-d', input_dir, TestJob)
 
     def train(self, inputs, opts, outputs=None, input_mode='-d', input_dir=''):
