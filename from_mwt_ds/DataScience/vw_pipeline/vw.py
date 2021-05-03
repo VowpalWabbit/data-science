@@ -7,6 +7,8 @@ from vw_pipeline.pool import SeqPool, MultiThreadPool
 from vw_pipeline import vw_opts
 from vw_pipeline.loggers import MultiLoggers
 from vw_pipeline.handlers import Handlers
+from vw_pipeline.vw_cache import VwCache
+from vw_pipeline.handlers import WidgetHandler
 
 import multiprocessing
 
@@ -229,18 +231,22 @@ class TrainJob(Job):
 
 
 class Vw:
-    def __init__(self, path, cache, procs=multiprocessing.cpu_count(), no_run=False, reset=False, handlers=None,
-                 loggers=None):
+    def __init__(self, path, cache_path,
+        procs=max(1, multiprocessing.cpu_count() // 2),
+        no_run=False,
+        reset=False,
+        handlers=[WidgetHandler()],
+        loggers=None):
         self.path = path
-        self._cache = cache
+        self._cache = VwCache(cache_path)
         self.logger = MultiLoggers(loggers or [])
         self.pool = SeqPool() if procs == 1 else MultiThreadPool(procs)
         self.no_run = no_run
         self.handler = Handlers(handlers or [])
         self.reset = reset
 
-    def _with(self, path=None, cache=None, procs=None, no_run=None, reset=None, handlers=None, loggers=None):
-        return Vw(path or self.path, cache or self._cache, procs or self.pool.procs,
+    def _with(self, path=None, cache_path=None, procs=None, no_run=None, reset=None, handlers=None, loggers=None):
+        return Vw(path or self.path, cache_path or self._cache.path, procs or self.pool.procs,
                   no_run if no_run is not None else self.no_run,
                   reset if reset is not None else self.reset, handlers or self.handler.handlers,
                   loggers or self.logger.loggers)
