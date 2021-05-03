@@ -1,4 +1,4 @@
-import Pipeline.cb.estimators as cb
+import cb.estimators as cb
 import pandas as pd
 
 class cb_estimator_old:

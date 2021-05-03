@@ -1,7 +1,7 @@
 import json
 import pandas as pd
 
-from Pipeline.dataflow import Fileset
+from pipeline.core import Fileset
 
 def line_2_slot(line):
     return {int(p.split(':')[0]) : float(p.split(':')[1])  for p in line.split(',')}

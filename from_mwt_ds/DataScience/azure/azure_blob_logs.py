@@ -1,5 +1,5 @@
 from azure.storage.blob import ContainerClient, BlobServiceClient
-from Pipeline.progress import dummy_progress
+from pipeline.progress import dummy_progress
 import datetime
 import os
 import pandas as pd

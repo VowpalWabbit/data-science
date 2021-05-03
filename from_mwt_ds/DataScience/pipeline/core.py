@@ -4,7 +4,7 @@ import pandas as pd
 from itertools import chain
 from pathlib import Path
 
-from Pipeline.progress import dummy_progress, tqdm_progress
+from pipeline.progress import dummy_progress, tqdm_progress
 
 class FileSizeHasher:
     extension = 'size'

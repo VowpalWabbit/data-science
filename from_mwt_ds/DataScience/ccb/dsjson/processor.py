@@ -1,4 +1,4 @@
-import Pipeline.ccb.dsjson.filters as filters
+import ccb.dsjson.filters as filters
 import json
 from collections import ChainMap
 

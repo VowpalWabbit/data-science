@@ -1,4 +1,4 @@
-import Pipeline.ccb.dsjson.filters as filters
+import ccb.dsjson.filters as filters
 import json
 import pandas as pd
 
