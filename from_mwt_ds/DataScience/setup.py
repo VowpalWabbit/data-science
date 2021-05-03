@@ -10,7 +10,7 @@ with open("README.md", "r") as f:
     long_description = f.read()
 
 setuptools.setup(
-    name="VwPipeline",
+    name="vw_pipeline",
     version=VERSION,
     author="Alexey Taymanov",
     author_email="ataymano@gmail.com",
@@ -19,7 +19,7 @@ setuptools.setup(
     long_description_content_type="text/markdown",
     url="https://github.com/VowpalWabbit/data-science",
     license="BSD 3-Clause License",
-    packages=["VwPipeline"],
+    packages=["vw_pipeline"],
     classifiers=[
         "Intended Audience :: Science/Research",
         "License :: OSI Approved :: BSD License",

@@ -1,5 +1,3 @@
-from VwPipeline.Vw import ExecutionStatus
-
 import os
 import shutil
 
@@ -65,6 +63,7 @@ class AzureMLHandler:
         pass
 
     def on_task_finish(self, job, task_idx):
+        from vw_pipeline.vw import ExecutionStatus
         task = job.tasks[task_idx]
         if self.folder and os.path.exists(task.stdout_path):
             fname = f'{job.name}.{task_idx}.stdout.txt'
