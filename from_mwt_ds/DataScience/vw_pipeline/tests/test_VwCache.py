@@ -1,5 +1,5 @@
 import unittest
-from VwPipeline.VwCache import VwCache
+from vw_pipeline.vw_cache import VwCache
 
 
 class TestVwCache(unittest.TestCase):
