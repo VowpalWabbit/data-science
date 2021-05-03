@@ -3,12 +3,12 @@ import os
 import pandas as pd
 import enum
 
-from vw_pipeline.pool import SeqPool, MultiThreadPool
-from vw_pipeline import vw_opts
-from vw_pipeline.loggers import MultiLoggers
-from vw_pipeline.handlers import Handlers
-from vw_pipeline.vw_cache import VwCache
-from vw_pipeline.handlers import WidgetHandler
+from vw_executor.pool import SeqPool, MultiThreadPool
+from vw_executor import vw_opts
+from vw_executor.loggers import MultiLoggers
+from vw_executor.handlers import Handlers
+from vw_executor.vw_cache import VwCache
+from vw_executor.handlers import WidgetHandler
 
 import multiprocessing
 
