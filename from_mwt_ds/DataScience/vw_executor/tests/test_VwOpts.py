@@ -1,5 +1,5 @@
 import unittest
-from vw_pipeline import vw_opts
+from vw_executor import vw_opts
 
 
 class TestStringHash(unittest.TestCase):
