@@ -1,6 +1,6 @@
 import os
 
-from vw_pipeline import loggers
+from vw_executor import loggers
 
 
 class VwCache:
@@ -19,7 +19,7 @@ class VwCache:
         return os.path.join(context, VwCache._file_name(args_hash))
 
     def get_rel_path(self, opts: dict, output: str = None, salt: str = None, logger=loggers.ConsoleLogger()) -> str:
-        from vw_pipeline import vw_opts
+        from vw_executor import vw_opts
         opts_str = vw_opts.to_string(opts)
         if salt:
             opts_str = opts_str + f' -# {salt}'
