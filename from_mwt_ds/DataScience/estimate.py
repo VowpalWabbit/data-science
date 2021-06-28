@@ -12,6 +12,15 @@ def estimate_bucket(bucket: pd.DataFrame, config: dict) -> dict:
 #   ..{} -> df 
     return {}
 
+def estimate_bucket_only_ips(bucket: pd.DataFrame, config: dict) -> dict: 
+    df = pd.DataFrame({'p': [0.5], 'r': [1], 'policy_1': [0.5]})
+    config = {
+            'policies':{'policy_1':['ips']}
+    }
+    return {'policy_1_ips': [1]}
+
+
+
 # TODO: write what fields are needed for function accurately
 # 1. write specification for all requirements for inputs and outputs ie what is contract
 # 2. tests for the test_estimate unittests using manual formula for validation

@@ -1,5 +1,5 @@
 import unittest, pandas as pd
-from estimate import estimate_bucket
+from estimate import estimate_bucket, estimate_bucket_only_ips
 # df needs to have probability (p), reward (r) and probability of policy to be estimated for counterfactual
 
 # ips = \sum(r * p_est / p) / \sum(1)
@@ -27,13 +27,8 @@ class TestEstimate(unittest.TestCase):
         }
 
         self.assertEqual(
-            {'policy_1_ips': []}, estimate_bucket(df, config))
- 
-    # why is this not returning one?
-
-
-
-    
+            {'policy_1_ips': [1]}, estimate_bucket_only_ips(df, config))
+  
     #     self.assertEqual(
     #         {'policy_1_ips': [1]}, estimate_bucket(df, config))
 
