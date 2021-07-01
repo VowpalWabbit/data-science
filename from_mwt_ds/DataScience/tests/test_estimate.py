@@ -1,5 +1,5 @@
 import unittest, pandas as pd
-from estimate import estimate_bucket, estimate_bucket_only_ips
+from estimate import estimate_bucket
 # df needs to have probability (p), reward (r) and probability of policy to be estimated for counterfactual
 
 # ips = \sum(r * p_est / p) / \sum(1)
@@ -20,14 +20,16 @@ class TestEstimate(unittest.TestCase):
         config = {}
         self.assertEqual({}, estimate_bucket({},{}))
 
-    def test_estimate_bucket_only_ips(self):
+    def test_estimate_bucket_only_ips(self): # need to use estimate_bucket
         df = pd.DataFrame({'p': [0.5], 'r': [1], 'policy_1': [0.5]})
         config = {
             'policies':{'policy_1':['ips']}
         }
-
+        for policy in policies:
+            # I need r from df as the value, and to append the list value of the policy to the key of the policy key as the key value
         self.assertEqual(
-            {'policy_1_ips': [1]}, estimate_bucket_only_ips(df, config))
+            {'policy_1_ips': [1]}, estimate_bucket(df, config)) # work in estimate.py to get this to pass
+            # expects:  {'policy_1_ips': [1]}
   
     #     self.assertEqual(
     #         {'policy_1_ips': [1]}, estimate_bucket(df, config))

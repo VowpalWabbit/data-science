@@ -10,14 +10,16 @@ def estimate_bucket(bucket: pd.DataFrame, config: dict) -> dict:
     # bucket : df 
     # config : {} of results
 #   ..{} -> df 
-    return {}
+    for policy in config:
+        print(policy)
+    return  config # only work in this function!!!!!
 
-def estimate_bucket_only_ips(bucket: pd.DataFrame, config: dict) -> dict: 
-    df = pd.DataFrame({'p': [0.5], 'r': [1], 'policy_1': [0.5]})
-    config = {
-            'policies':{'policy_1':['ips']}
-    }
-    return {'policy_1_ips': [1]}
+# def estimate_bucket_only_ips(bucket: pd.DataFrame, config: dict) -> dict: 
+#     df = pd.DataFrame({'p': [0.5], 'r': [1], 'policy_1': [0.5]})
+#     config = {
+#             'policies':{'policy_1':['ips']}
+#     }
+#     return {'policy_1_ips': [1]}
 
 
 
