@@ -25,8 +25,7 @@ class TestEstimate(unittest.TestCase):
         config = {
             'policies':{'policy_1':['ips']}
         }
-        for policy in policies:
-            # I need r from df as the value, and to append the list value of the policy to the key of the policy key as the key value
+            # I need r from df as the, and to append the list value of the policy to the key of the policy key
         self.assertEqual(
             {'policy_1_ips': [1]}, estimate_bucket(df, config)) # work in estimate.py to get this to pass
             # expects:  {'policy_1_ips': [1]}
