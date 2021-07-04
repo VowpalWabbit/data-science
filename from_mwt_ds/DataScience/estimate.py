@@ -7,5 +7,5 @@ def estimate_bucket(bucket: pd.DataFrame, config: dict) -> dict:
         return {}
     else:
         e = bandits.ips.Estimator()
-        e.add_example(0.5, 1.0, 0.5)
+        e.add_example(bucket['p'][0], bucket['r'][0], bucket['policy_1'][0])
         return e.get() # 1
