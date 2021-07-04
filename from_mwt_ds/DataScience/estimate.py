@@ -1,14 +1,11 @@
 import pandas as pd
-import estimators
-from estimate import estimators
-# these imports ie bandits and snips aren't working for me
-# from estimators import bandits
-# from bandits import snips
+from estimators import bandits
+from estimators.bandits import ips
 
-def estimate_bucket(bucket: pd.DataFrame, config: dict) -> dict: 
-    # init estimaors
-    ipssnips = snips.Estimator()
+def estimate_bucket(bucket: pd.DataFrame, config: dict) -> dict:
     if len(bucket) == 0 or config == {}:
         return {}
     else:
-        pass
+        e = bandits.ips.Estimator()
+        e.add_example(0.5, 1.0, 0.5)
+        return e.get() # 1

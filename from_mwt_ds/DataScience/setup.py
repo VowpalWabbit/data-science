@@ -19,7 +19,7 @@ setuptools.setup(
     long_description_content_type="text/markdown",
     url="https://github.com/VowpalWabbit/data-science",
     license="BSD 3-Clause License",
-    packages=["vw_executor","estimators","estimators.bandits"],
+    packages=["vw_executor"],
     classifiers=[
         "Intended Audience :: Science/Research",
         "License :: OSI Approved :: BSD License",
