@@ -9,10 +9,7 @@ def estimate_bucket(bucket: pd.DataFrame, config: dict) -> dict:
         e = bandits.ips.Estimator()
         for row in bucket:
             bucket.get(row)
-            print(bucket.get(row))
         for policy in config:
             config.get(policy)
-            print(config.get(policy))
             for estimator in config.get(policy):
-                print(estimator)
- 
+                config.get(policy)[estimator]
