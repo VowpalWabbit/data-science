@@ -7,10 +7,11 @@ def estimate_bucket(bucket: pd.DataFrame, config: dict) -> dict:
         return {}
     else:
         e = bandits.ips.Estimator()
-        for index, row in df.iterrows():
+        for index, row in bucket.iterrows():
             e.add_example(row['p'], row['r'], row['policy_1'])
         for policy in config:
-            config.get(policy).keys()
+            config.get(policy).keys() # prints {'policy_1' : ['ips']}
             for estimator in config.get(policy):
-                print(config.get(policy)[estimator])
-        return e.get()
+                estimator_ = (config.get(policy)[estimator][0])
+        return config.get(policy).keys(), estimator_, [e.get()]
+ 
