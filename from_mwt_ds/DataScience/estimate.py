@@ -10,8 +10,13 @@ def estimate_bucket(bucket: pd.DataFrame, config: dict) -> dict:
         for index, row in bucket.iterrows():
             e.add_example(row['p'], row['r'], row['policy_1'])
         for policy in config:
-            config.get(policy).keys() # prints {'policy_1' : ['ips']}
+            for key, value in config[policy].items():
+                key_ = key
+                value_ = value
             for estimator in config.get(policy):
                 estimator_ = (config.get(policy)[estimator][0])
-        return config.get(policy).keys(), estimator_, [e.get()]
- 
+        return { key_ + "_" +  estimator_ : [e.get()]}
+
+
+def process_input(input_files) -> tmp_df:
+    pass
