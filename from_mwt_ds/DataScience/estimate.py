@@ -2,9 +2,9 @@ import pandas as pd
 from estimators.bandits import ips, snips, mle, cressieread
 
 
-def process_input(input_file) -> pd.DataFrame:
-    tmp_df = pd.read_csv(input_file)
-    return tmp_df
+def process_input(input_file, chunksize) -> pd.DataFrame:
+    for chunk in pd.read_csv(input_file, chunksize=chunksize):
+        return chunk
 
 def estimate_bucket(bucket: pd.DataFrame, config: dict) -> dict:
     if len(bucket) == 0 or config == {}:
@@ -38,10 +38,10 @@ def estimate_bucket(bucket: pd.DataFrame, config: dict) -> dict:
 def estimate(input_files, config):
     number_of_events = config["aggregation"]['num_of_events']
     for file in input_files:
-        tmp_df = process_input(file)
-    # TODO: chunk-size
+        chunksize = number_of_events
+        tmp_df = process_input(file, chunksize)
         estimate_bucket(tmp_df, config)
-    return
+    return 
 
 input_files = ["test_data/cb/01.csv"]
 config = {
