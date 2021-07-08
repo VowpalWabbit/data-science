@@ -19,8 +19,7 @@ def estimate_bucket(bucket: pd.DataFrame, config: dict) -> dict:
                 else:
                     raise("Estimator not found.")
 
-                for index, row in bucket.iterrows():
-                    # TODO: policy name is binary
+                for _, row in bucket.iterrows():
                     estimator_obj.add_example(row['p'], row['r'], row[policy_name])
                 # for policy in config:
                 #     for key, value in config[policy].items():
