@@ -2,26 +2,28 @@ import pandas as pd
 from estimators.bandits import ips, snips, mle, cressieread
 
 def estimate_bucket(bucket: pd.DataFrame, config: dict) -> dict:
+    result = {}
     if len(bucket) == 0 or config == {}:
-        return {}
+        return result
     for policy_name, estimator_list in config["policies"].items():
-        estimator_obj = None
-        for estimator in estimator_list:
-            if estimator == 'ips':
-                estimator_obj = ips.Estimator()
-            elif estimator == 'snips':
-                estimator_obj = snips.Estimator()
-            elif estimator == 'mle':
-                estimator_obj = mle.Estimator()
-            elif estimator == 'cressieread':
-                estimator_obj = cressieread.Estimator()
+        estimator = None
+        for estimator_name in estimator_list:
+            if estimator_name == 'ips':
+                estimator = ips.Estimator()
+            elif estimator_name == 'snips':
+                estimator = snips.Estimator()
+            elif estimator_name == 'mle':
+                estimator = mle.Estimator()
+            elif estimator_name == 'cressieread':
+                estimator = cressieread.Estimator()
             else:
                 raise("Estimator not found.")
 
             for _, row in bucket.iterrows():
-                estimator_obj.add_example(row['p'], row['r'], row[policy_name])
-            estimated_reward = estimator_obj.get()
-    return {}
+                estimator.add_example(row['p'], row['r'], row[policy_name])
+            estimated_reward = estimator.get()
+            result[policy_name + "_" + estimator_name] = estimated_reward   
+    return result
 
 def estimate(input_files, config):
     number_of_events = config["aggregation"]['num_of_events']
