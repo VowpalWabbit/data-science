@@ -4,30 +4,24 @@ from estimators.bandits import ips, snips, mle, cressieread
 def estimate_bucket(bucket: pd.DataFrame, config: dict) -> dict:
     if len(bucket) == 0 or config == {}:
         return {}
-    else:
-        for policy_name, estimator_list in config["policies"].items():
-            estimator_obj = None
-            for estimator in estimator_list:
-                if estimator == 'ips':
-                    estimator_obj = ips.Estimator()
-                elif estimator == 'snips':
-                    estimator_obj = snips.Estimator()
-                elif estimator == 'mle':
-                    estimator_obj = mle.Estimator()
-                elif estimator == 'cressieread':
-                    estimator_obj = cressieread.Estimator()
-                else:
-                    raise("Estimator not found.")
+    for policy_name, estimator_list in config["policies"].items():
+        estimator_obj = None
+        for estimator in estimator_list:
+            if estimator == 'ips':
+                estimator_obj = ips.Estimator()
+            elif estimator == 'snips':
+                estimator_obj = snips.Estimator()
+            elif estimator == 'mle':
+                estimator_obj = mle.Estimator()
+            elif estimator == 'cressieread':
+                estimator_obj = cressieread.Estimator()
+            else:
+                raise("Estimator not found.")
 
-                for _, row in bucket.iterrows():
-                    estimator_obj.add_example(row['p'], row['r'], row[policy_name])
-                # for policy in config:
-                #     for key, value in config[policy].items():
-                #         key_ = key
-                #         value_ = value
-                #     for estimator in config.get(policy):
-                #         estimator_ = (config.get(policy)[estimator][0])
-        return {}
+            for _, row in bucket.iterrows():
+                estimator_obj.add_example(row['p'], row['r'], row[policy_name])
+            estimated_reward = estimator_obj.get()
+    return {}
 
 def estimate(input_files, config):
     number_of_events = config["aggregation"]['num_of_events']
