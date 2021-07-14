@@ -30,11 +30,4 @@ def estimate(input_files, config):
     for file in input_files:
         for chunk in pd.read_csv(file, chunksize=number_of_events):
             estimate_bucket(chunk, config)
-    return 
-
-input_files = ["test_data/cb/01.csv"]
-config = {
-    'policies': {'random': ['ips', 'snips'], 'baseline1': ['ips']},
-    'aggregation': {'num_of_events': 10}
-}
-estimate(input_files, config)
+    return
