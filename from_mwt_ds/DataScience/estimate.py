@@ -27,8 +27,8 @@ def estimate_bucket(bucket: pd.DataFrame, config: dict) -> dict:
 
 def estimate(input_files, config, output_path):
     number_of_events = config["aggregation"]['num_of_events']
-    result = []
     for file in input_files:
+        result = []
         for chunk in pd.read_csv(file, chunksize=number_of_events):
             result.append(estimate_bucket(chunk, config))
         output_file_name = file.split("/")[-1]
