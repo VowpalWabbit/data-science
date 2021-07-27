@@ -1,30 +1,37 @@
-class ips_snips:
-    def __init__(self, r = 0, n = 0, n_ips = 0, r2 = 0):
-        self.r = r
-        self.n = n
-        self.n_ips = n_ips
+import pandas as pd
+from estimators.bandits import ips, snips, mle, cressieread
 
-    def add(self, r, p_log, p, n = 1):  
-        num = r * p / p_log
-        self.r += n * num
-        self.n += n
-        self.n_ips += n * p / p_log
+def estimate_bucket(bucket: pd.DataFrame, config: dict) -> dict:
+    result = {}
+    if len(bucket) == 0 or config == {}:
+        return result
+    for policy_name, estimator_list in config["policies"].items():
+        estimator = None
+        for estimator_name in estimator_list:
+            if estimator_name == 'ips':
+                estimator = ips.Estimator()
+            elif estimator_name == 'snips':
+                estimator = snips.Estimator()
+            elif estimator_name == 'mle':
+                estimator = mle.Estimator()
+            elif estimator_name == 'cressieread':
+                estimator = cressieread.Estimator()
+            else:
+                raise("Estimator not found.")
 
-    def __add__(self, other):
-        r = self.r + other.r
-        n = self.n + other.n
-        n_ips = self.n_ips + other.n_ips
-        return ips_snips(r, n, n_ips)
+            for _, row in bucket.iterrows():
+                estimator.add_example(row['p'], row['r'], row[policy_name])
+            estimated_reward = estimator.get()
+            result[policy_name + "_" + estimator_name] = estimated_reward   
+    return result
 
-    def get_ips(self):
-        return 0 if self.n == 0 else self.r / self.n
+def estimate(input_files, config, output_path):
+    number_of_events = config["aggregation"]['num_of_events']
+    result = []
+    for file in input_files:
+        for chunk in pd.read_csv(file, chunksize=number_of_events):
+            result.append(estimate_bucket(chunk, config))
+        output_file_name = file.split("/")[-1]
+        pd.DataFrame(result).to_csv(output_path + "/" + output_file_name + '.aggregated')
+    return
 
-    def get_snips(self):
-        return 0 if self.n == 0 else self.r / self.n_ips
-
-    def get(self, type):
-        if type == 'ips':
-            return self.get_ips()
-        elif type == 'snips':
-            return self.get_snips()
-        raise Exception('Not supported')
