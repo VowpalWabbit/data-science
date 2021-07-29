@@ -25,12 +25,12 @@ def estimate_bucket(bucket: pd.DataFrame, config: dict) -> dict:
             result[policy_name + "_" + estimator_name] = estimated_reward   
     return result
 
-def estimate(input_files, config):
+def estimate(input_files, config, output_path):
     number_of_events = config["aggregation"]['num_of_events']
-    result = []
     for file in input_files:
+        result = []
         for chunk in pd.read_csv(file, chunksize=number_of_events):
             result.append(estimate_bucket(chunk, config))
-        pd.DataFrame(result).to_csv(file + '.aggregated')
+        output_file_name = file.split("/")[-1]
+        pd.DataFrame(result).to_csv(output_path + "/" + output_file_name + '.aggregated')
     return
-
