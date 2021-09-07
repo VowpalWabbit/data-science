@@ -11,6 +11,7 @@ from vw_executor.vw_cache import VwCache
 from vw_executor.handlers import WidgetHandler
 
 import multiprocessing
+from pathlib import Path
 
 
 def _safe_to_float(num: str, default):
@@ -118,10 +119,10 @@ class Task:
         if self.model_file:
             opts['-i'] = self.model_file
 
-        self.outputs_relative = {o: cache.get_rel_path(opts, o, salt) for o in self._job.outputs.keys()}
-        self.outputs = {o: cache.get_path(opts, o, salt, self._logger) for o in self._job.outputs.keys()}
+        self.outputs_relative = {o: cache.get_path(opts, o, salt) for o in self._job.outputs.keys()}
+        self.outputs = {o: Path(cache.path).joinpath(p) for o, p in self.outputs_relative.items()}
 
-        self.stdout_path = cache.get_path(opts, None, salt, self._logger)
+        self.stdout_path = Path(cache.path).joinpath(cache.get_path(opts, None, salt, self._logger))
 
         if self.model_file:
             opts['-i'] = os.path.join(self.model_folder, self.model_file)

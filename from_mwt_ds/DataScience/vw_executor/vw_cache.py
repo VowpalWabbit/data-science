@@ -18,7 +18,7 @@ class VwCache:
         os.makedirs(folder_name, exist_ok=True)
         return os.path.join(context, VwCache._file_name(args_hash))
 
-    def get_rel_path(self, opts: dict, output: str = None, salt: str = None, logger=loggers.ConsoleLogger()) -> str:
+    def get_path(self, opts: dict, output: str = None, salt: str = None, logger=loggers.ConsoleLogger()) -> str:
         from vw_executor import vw_opts
         opts_str = vw_opts.to_string(opts)
         if salt:
@@ -27,6 +27,3 @@ class VwCache:
         result = self._get_path(f'cache{output}', args_hash)
         logger.debug(f'Generating path for opts: {vw_opts.to_string(opts)}, output: {output}. Result: {result}')
         return result
-
-    def get_path(self, opts: dict, output: str = None, salt: str = None, logger=loggers.ConsoleLogger()) -> str:
-        return os.path.join(self.path, self.get_rel_path(opts, output, salt, logger))
