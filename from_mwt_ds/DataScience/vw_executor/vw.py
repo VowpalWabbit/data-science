@@ -11,6 +11,7 @@ from vw_executor.vw_cache import VwCache
 from vw_executor.handlers import WidgetHandler
 
 import multiprocessing
+from pathlib import Path
 
 
 def _safe_to_float(num: str, default):
@@ -18,6 +19,14 @@ def _safe_to_float(num: str, default):
         return float(num)
     except (ValueError, TypeError):
         return default
+
+def _to(value: str, types: list):
+    for t in types:
+        try:
+            return t(value)
+        except (ValueError, TypeError):
+            ...
+    return value
 
 
 # Helper function to extract example counters and metrics from VW output.
@@ -27,8 +36,7 @@ def _safe_to_float(num: str, default):
 # Metric lines have the following form:
 # metric_name = metric_value
 def _extract_metrics(out_lines):
-    average_loss_dict = {}
-    since_last_dict = {}
+    loss_table = {'i': [], 'loss': [], 'since_last': []}
     metrics = {}
     try:
         record = False
@@ -39,27 +47,24 @@ def _extract_metrics(out_lines):
                     record = False
                 else:
                     counter_line = line.split()
-                    count, average_loss, since_last = counter_line[2], counter_line[0], counter_line[1]
-                    average_loss_dict[count] = average_loss
-                    since_last_dict[count] = since_last
+                    try:
+                        count, average_loss, since_last = counter_line[2], counter_line[0], counter_line[1]
+                        average_loss_f = float(average_loss)
+                        since_last_f = float(since_last)
+                        loss_table['i'].append(count)
+                        loss_table['loss'].append(average_loss_f)
+                        loss_table['since_last'].append(since_last_f)
+                    except:
+                        ... # todo: handle
             elif line.startswith('loss'):
                 fields = line.split()
                 if fields[0] == 'loss' and fields[1] == 'last' and fields[2] == 'counter':
                     record = True
             elif '=' in line:
                 key_value = [p.strip() for p in line.split('=')]
-                metrics[key_value[0]] = key_value[1]
+                metrics[key_value[0]] = _to(key_value[1], [int, float])
     finally:
-        return average_loss_dict, since_last_dict, metrics
-
-
-def _parse_vw_output(lines):
-    average_loss, since_last, metrics = _extract_metrics(lines)
-    loss = None
-    if 'average loss' in metrics:
-        # Include the final loss as the primary metric
-        loss = _safe_to_float(metrics['average loss'], None)
-    return {'loss_per_example': average_loss, 'since_last': since_last, 'metrics': metrics}, loss
+        return pd.DataFrame(loss_table).set_index('i'), metrics
 
 
 def _metrics_table(metrics, name):
@@ -94,19 +99,53 @@ class ExecutionStatus(enum.Enum):
     Failed = 4
 
 
+class Output:
+    def __init__(self, path):
+        self.path = path
+        self._processed = False
+        self._loss = None
+        self._loss_table = None
+        self._metrics = None
+
+    def raw(self):
+        return open(self.path, 'r').readlines()
+
+    def _process(self):
+        self._processed = True
+        self._loss_table, self._metrics = _extract_metrics(self.raw())
+        if 'average loss' in self._metrics:
+            self._loss = _safe_to_float(self._metrics['average loss'], None)
+    
+    @property
+    def loss(self):
+        if not self._processed:
+            self._process()
+        return self._loss
+
+    @property
+    def loss_table(self):
+        if not self._processed:
+            self._process()
+        return self._loss_table
+
+    @property
+    def metrics(self):
+        if not self._processed:
+            self._process()
+        return self._metrics
+
 class Task:
     def __init__(self, job, logger, input_file, input_folder, model_file, model_folder='', no_run=False):
         self._job = job
+        self._logger = logger
         self.input_file = input_file
         self.input_folder = input_folder
-        self._logger = logger
         self.status = ExecutionStatus.NotStarted
         self.model_file = model_file
         self.model_folder = model_folder
         self._no_run = no_run
-        self.loss = None
         self.args = self._prepare_args(self._job.cache)
-        self.metrics = {}
+        self.stdout = None
 
     def _prepare_args(self, cache):
         opts = self._job.opts.copy()
@@ -118,10 +157,10 @@ class Task:
         if self.model_file:
             opts['-i'] = self.model_file
 
-        self.outputs_relative = {o: cache.get_rel_path(opts, o, salt) for o in self._job.outputs.keys()}
-        self.outputs = {o: cache.get_path(opts, o, salt, self._logger) for o in self._job.outputs.keys()}
+        self.outputs_relative = {o: cache.get_path(opts, o, salt) for o in self._job.outputs.keys()}
+        self.outputs = {o: Path(cache.path).joinpath(p) for o, p in self.outputs_relative.items()}
 
-        self.stdout_path = cache.get_path(opts, None, salt, self._logger)
+        self.stdout_path = Path(cache.path).joinpath(cache.get_path(opts, None, salt, self._logger))
 
         if self.model_file:
             opts['-i'] = os.path.join(self.model_folder, self.model_file)
@@ -157,11 +196,21 @@ class Task:
             _save(result, self.stdout_path)
         else:
             self._logger.debug(f'Result of vw execution is found: {self.args}')
-        self.metrics, self.loss = _parse_vw_output(self.stdout())
-        self.status = ExecutionStatus.Success if self.loss is not None else ExecutionStatus.Failed
 
-    def stdout(self):
-        return open(self.stdout_path, 'r').readlines()
+        self.stdout = Output(self.stdout_path)
+        self.status = ExecutionStatus.Success if self.stdout.loss is not None else ExecutionStatus.Failed
+
+    @property
+    def loss(self):
+        return self.stdout.loss if self.stdout else None
+
+    @property
+    def loss_table(self):
+        return self.stdout.loss_table if self.stdout else None
+
+    @property
+    def metrics(self):
+        return self.stdout.metrics if self.stdout else None         
 
 
 class Job:
@@ -175,16 +224,14 @@ class Job:
         self.failed = None
         self._handler = handler
         self.status = ExecutionStatus.NotStarted
-        self.loss = None
         self.outputs = {o: [] for o in outputs}
-        self.metrics = []
-        self.tasks = []
+        self._tasks = []
 
     def run(self, reset):
         self._handler.on_job_start(self)
         self._logger.debug('Starting job...')
         self.status = ExecutionStatus.Running
-        for i, t in enumerate(self.tasks):
+        for i, t in enumerate(self._tasks):
             self._logger.debug(f'Starting task {i}...')
             self._handler.on_task_start(self, i)
             t.run(reset)
@@ -195,29 +242,33 @@ class Job:
                 break
             for p in t.outputs:
                 self.outputs[p].append(t.outputs[p])
-            self.metrics.append(t.metrics)
 
         self.status = self.failed.status if self.failed is not None else ExecutionStatus.Success
         self._logger.debug(f'Job is finished: {self.status}')
-        self.loss = self.tasks[-1].loss if len(self.tasks) > 0 and self.status == ExecutionStatus.Success else None
         self._handler.on_job_finish(self)
         return self
+    
+    def __getitem__(self, i):
+        return self._tasks[i]
+
+    @property
+    def loss(self):
+        return self[-1].loss
+
+    @property
+    def loss_table(self):
+        return pd.concat([t.stdout.loss_table.assign(file=i)
+                      for i, t in enumerate(self._tasks)]).reset_index().set_index(['file', 'i'])
 
     def to_dict(self):
-        loss = self.loss if self.failed is None else None
-        metrics = metrics_table(self.metrics) if self.metrics else None
-        final_metrics = final_metrics_table(self.metrics) if self.metrics else None
-        return dict(self.opts, **{'!Loss': loss,
-                '!Outputs': self.outputs,
-                '!Metrics': metrics,
-                '!FinalMetrics': final_metrics,
+        return dict(self.opts, **{'!Loss': self.loss,
                 '!Job': self})
 
 class TestJob(Job):
     def __init__(self, vw_path, cache, files, input_dir, opts, outputs, input_mode, no_run, handler, logger):
         super().__init__(vw_path, cache, opts, outputs, input_mode, handler, logger)
         for f in files:
-            self.tasks.append(Task(self, self._logger, f, input_dir, None, cache.path, no_run))
+            self._tasks.append(Task(self, self._logger, f, input_dir, None, cache.path, no_run))
 
 
 class TrainJob(Job):
@@ -226,8 +277,8 @@ class TrainJob(Job):
             outputs.append('-f')
         super().__init__(vw_path, cache, opts, outputs, input_mode, handler, logger)
         for i, f in enumerate(files):
-            model = None if i == 0 else self.tasks[i - 1].outputs_relative['-f']
-            self.tasks.append(Task(self, self._logger, f, input_dir, model, cache.path, no_run))
+            model = None if i == 0 else self._tasks[i - 1].outputs_relative['-f']
+            self._tasks.append(Task(self, self._logger, f, input_dir, model, cache.path, no_run))
 
 
 class Vw:
@@ -270,7 +321,7 @@ class Vw:
 
     def _run(self, inputs, opts, outputs, input_mode, input_dir, job_type):
         if isinstance(opts, pd.DataFrame):
-            opts = list(opts.loc[:, ~opts.columns.str.startswith('!')].to_dict('index').values())
+            opts = opts.loc[:, ~opts.columns.str.startswith('!')].to_dict('records')
             result = self._run_on_dict(inputs, opts, outputs, input_mode, input_dir, job_type)
             result_pd = []
             for t in result:
