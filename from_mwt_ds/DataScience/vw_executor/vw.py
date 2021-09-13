@@ -47,10 +47,15 @@ def _extract_metrics(out_lines):
                     record = False
                 else:
                     counter_line = line.split()
-                    count, average_loss, since_last = counter_line[2], counter_line[0], counter_line[1]
-                    loss_table['i'].append(count)
-                    loss_table['loss'].append(float(average_loss))
-                    loss_table['since_last'].append(float(since_last))
+                    try:
+                        count, average_loss, since_last = counter_line[2], counter_line[0], counter_line[1]
+                        average_loss_f = float(average_loss)
+                        since_last_f = float(since_last)
+                        loss_table['i'].append(count)
+                        loss_table['loss'].append(average_loss_f)
+                        loss_table['since_last'].append(since_last_f)
+                    except:
+                        ... # todo: handle
             elif line.startswith('loss'):
                 fields = line.split()
                 if fields[0] == 'loss' and fields[1] == 'last' and fields[2] == 'counter':
