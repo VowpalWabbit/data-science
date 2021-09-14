@@ -200,6 +200,9 @@ class Task:
         self.stdout = Output(self.stdout_path)
         self.status = ExecutionStatus.Success if self.stdout.loss is not None else ExecutionStatus.Failed
 
+    def reset_stdout(self):
+        Path(self.stdout_path).unlink()
+
     @property
     def loss(self):
         return self.stdout.loss if self.stdout else None
