@@ -67,21 +67,6 @@ def _extract_metrics(out_lines):
         return pd.DataFrame(loss_table).set_index('i'), metrics
 
 
-def _metrics_table(metrics, name):
-    return pd.DataFrame({'n': [int(k) for k in metrics[name]],
-                        name: [float(metrics[name][k]) for k in metrics[name]]
-                        }).set_index('n')
-
-
-def metrics_table(metrics):
-    return pd.concat([_metrics_table(m, 'loss_per_example').join(_metrics_table(m, 'since_last')).assign(file=i)
-                      for i, m in enumerate(metrics)]).reset_index().set_index(['file', 'n'])
-
-
-def final_metrics_table(metrics):
-    return [m['metrics'] for m in metrics]
-
-
 def _save(txt, path):
     with open(path, 'w') as f:
         f.write(txt)
