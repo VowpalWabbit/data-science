@@ -47,6 +47,7 @@ def to_cache_cmd(opts: dict) -> str:
 
     parser.add_argument('--json', action='store_true')
     parser.add_argument('--dsjson', action='store_true')
+    parser.add_argument('--cats', action='store_true')
 
     parser.add_argument('--compressed', action='store_true')
 
@@ -68,5 +69,7 @@ def to_cache_cmd(opts: dict) -> str:
         result = result + '--compressed '
     if namespace.bit_precision:
         result = result + f'-b {namespace.bit_precision} '
+    if namespace.cats:
+        result = result + f'--cats 1 --bandwidth 1 --min_value 0 --max_value 1 '
 
     return result.strip()

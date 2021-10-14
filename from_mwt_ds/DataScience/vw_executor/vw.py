@@ -35,6 +35,12 @@ def _to(value: str, types: list):
 # and followed by a blank line
 # Metric lines have the following form:
 # metric_name = metric_value
+
+def _parse_loss(loss_str):
+    if loss_str.strip()[-1] == 'h':
+        loss_str = loss_str[:-1] 
+    return _safe_to_float(loss_str, None)
+
 def _extract_metrics(out_lines):
     loss_table = {'i': [], 'loss': [], 'since_last': []}
     metrics = {}
@@ -62,7 +68,10 @@ def _extract_metrics(out_lines):
                     record = True
             elif '=' in line:
                 key_value = [p.strip() for p in line.split('=')]
-                metrics[key_value[0]] = _to(key_value[1], [int, float])
+                if key_value[0] == 'average loss':
+                    metrics[key_value[0]] = _parse_loss(key_value[1])
+                else:
+                    metrics[key_value[0]] = _to(key_value[1], [int, float])
     finally:
         return pd.DataFrame(loss_table).set_index('i'), metrics
 
@@ -99,7 +108,7 @@ class Output:
         self._processed = True
         self._loss_table, self._metrics = _extract_metrics(self.raw())
         if 'average loss' in self._metrics:
-            self._loss = _safe_to_float(self._metrics['average loss'], None)
+            self._loss = self._metrics['average loss']
     
     @property
     def loss(self):
