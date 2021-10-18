@@ -8,10 +8,10 @@ import pandas as pd
 
 from vw_executor.pool import SeqPool, MultiThreadPool
 from vw_executor import vw_opts
-from vw_executor.loggers import MultiLoggers
-from vw_executor.handlers import Handlers
+from vw_executor.loggers import _MultiLoggers
+from vw_executor.handlers import _Handlers
 from vw_executor.vw_cache import VwCache
-from vw_executor.handlers import WidgetHandler
+from vw_executor.handlers import ProgressBars
 
 
 def _safe_to_float(num: str, default):
@@ -303,14 +303,14 @@ class Vw:
         procs=max(1, multiprocessing.cpu_count() // 2),
         no_run=False,
         reset=False,
-        handlers=[WidgetHandler()],
+        handlers=[ProgressBars()],
         loggers=None):
         self.path = _assert_path_is_supported(path)
         self._cache = VwCache(_assert_path_is_supported(cache_path))
-        self.logger = MultiLoggers(loggers or [])
+        self.logger = _MultiLoggers(loggers or [])
         self.pool = SeqPool() if procs == 1 else MultiThreadPool(procs)
         self.no_run = no_run
-        self.handler = Handlers(handlers or [])
+        self.handler = _Handlers(handlers or [])
         self.reset = reset
 
     def _with(self, path=None, cache_path=None, procs=None, no_run=None, reset=None, handlers=None, loggers=None):
