@@ -293,6 +293,12 @@ class TrainJob(Job):
             self._tasks.append(Task(self, self._logger, f, input_dir, model, cache.path, no_run))
 
 
+def _assert_path_is_supported(path):
+    if ' -' in path:
+        raise ValueError(f'Paths that are containing " -" as substring are not supported: {path}')
+    return path
+
+
 class Vw:
     def __init__(self, path, cache_path,
         procs=max(1, multiprocessing.cpu_count() // 2),
@@ -300,8 +306,8 @@ class Vw:
         reset=False,
         handlers=[WidgetHandler()],
         loggers=None):
-        self.path = path
-        self._cache = VwCache(cache_path)
+        self.path = _assert_path_is_supported(path)
+        self._cache = VwCache(_assert_path_is_supported(cache_path))
         self.logger = MultiLoggers(loggers or [])
         self.pool = SeqPool() if procs == 1 else MultiThreadPool(procs)
         self.no_run = no_run
@@ -322,6 +328,7 @@ class Vw:
     def _run_on_dict(self, inputs, opts, outputs, input_mode, input_dir, job_type):
         if not isinstance(inputs, list):
             inputs = [inputs]
+        inputs = [_assert_path_is_supported(i) for i in inputs]
         self.handler.on_start(inputs, opts)
         if isinstance(opts, list):
             args = [(inputs, point, outputs, input_mode, input_dir, job_type) for point in opts]
