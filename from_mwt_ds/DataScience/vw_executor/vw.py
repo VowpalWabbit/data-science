@@ -91,15 +91,16 @@ class Output:
         self._loss = None
         self._loss_table = None
         self._metrics = None
-
-    def raw(self):
-        return open(self.path, 'r').readlines()
-
+    
     def _process(self):
         self._processed = True
-        self._loss_table, self._metrics = _extract_metrics(self.raw())
+        self._loss_table, self._metrics = _extract_metrics(self.raw)
         if 'average loss' in self._metrics:
             self._loss = _safe_to_float(self._metrics['average loss'], None)
+
+    @property
+    def raw(self):
+        return open(self.path, 'r').readlines()
     
     @property
     def loss(self):
