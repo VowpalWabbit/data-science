@@ -273,6 +273,10 @@ class Job:
     def runtime_s(self):
         return self[-1].end_time - self[0].start_time if self[-1].end_time else None
 
+    @property
+    def metrics(self):
+        return pd.DataFrame([t.metrics for t in self._tasks])
+
 class TestJob(Job):
     def __init__(self, vw_path, cache, files, input_dir, opts, outputs, input_mode, no_run, handler, logger):
         super().__init__(vw_path, cache, opts, outputs, input_mode, handler, logger)
