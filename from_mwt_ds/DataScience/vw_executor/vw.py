@@ -265,8 +265,7 @@ class Job:
                       for i, t in enumerate(self._tasks)]).reset_index().set_index(['file', 'i'])
 
     def to_dict(self):
-        return dict(self.opts, **{'!Loss': self.loss,
-                '!Job': self})
+        return dict(self.opts, **{'!Loss': self.loss, '!Job': self})
 
     @property
     def runtime_s(self):
@@ -317,8 +316,8 @@ class Vw:
     def _with(self, path=None, cache_path=None, procs=None, no_run=None, reset=None, handlers=None, loggers=None):
         return Vw(path or self.path, cache_path or self._cache.path, procs or self.pool.procs,
                   no_run if no_run is not None else self.no_run,
-                  reset if reset is not None else self.reset, handlers or self.handler.handlers,
-                  loggers or self.logger.loggers)
+                  reset if reset is not None else self.reset, handlers if handlers is not None else self.handler.handlers,
+                  loggers if loggers is not None else self.logger.loggers)
 
     def _run_impl(self, inputs, opts, outputs, input_mode, input_dir, job_type):
         job = job_type(self.path, self._cache, inputs, input_dir, opts, outputs, input_mode, self.no_run,

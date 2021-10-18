@@ -32,7 +32,7 @@ class _LoggerCore:
             self._trace(message)
 
     def _trace(self, message: str):
-        prefix = f'[{self.tag or ""}][{time.strftime("%d-%m-%Y %H:%M:%S", time.localtime(time.time()))}]'
+        prefix = f'[{time.strftime("%d-%m-%Y %H:%M:%S", time.localtime(time.time()))}][{self.tag or ""}]'
         self.impl.trace(f'{prefix} {message}')
 
 
