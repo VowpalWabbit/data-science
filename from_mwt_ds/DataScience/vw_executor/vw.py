@@ -1,7 +1,10 @@
-import subprocess
-import os
-import pandas as pd
 import enum
+import multiprocessing
+from pathlib import Path
+import subprocess
+import time
+
+import pandas as pd
 
 from vw_executor.pool import SeqPool, MultiThreadPool
 from vw_executor import vw_opts
@@ -9,10 +12,6 @@ from vw_executor.loggers import MultiLoggers
 from vw_executor.handlers import Handlers
 from vw_executor.vw_cache import VwCache
 from vw_executor.handlers import WidgetHandler
-
-import multiprocessing
-from pathlib import Path
-import time
 
 
 def _safe_to_float(num: str, default):
@@ -149,9 +148,9 @@ class Task:
         opts = self._job.opts.copy()
         opts[self._job.input_mode] = self.input_file
 
-        input_full = os.path.join(self.input_folder, self.input_file)
+        input_full = Path(self.input_folder).joinpath(self.input_file)
 
-        salt = os.path.getsize(input_full)
+        salt = Path(input_full).stat().st_size
         if self.model_file:
             opts['-i'] = self.model_file
 
@@ -161,7 +160,7 @@ class Task:
         self.stdout_path = Path(cache.path).joinpath(cache.get_path(opts, None, salt, self._logger))
 
         if self.model_file:
-            opts['-i'] = os.path.join(self.model_folder, self.model_file)
+            opts['-i'] = Path(self.model_folder).joinpath(self.model_file)
 
         opts[self._job.input_mode] = input_full
         opts = dict(opts, **self.outputs)
@@ -182,7 +181,7 @@ class Task:
 
     def run(self, reset):
         result_files = list(self.outputs.values()) + [self.stdout_path]
-        not_exist = next((p for p in result_files if not os.path.exists(p)), None)
+        not_exist = next((p for p in result_files if not Path(p).exists()), None)
         self.start_time = time.time()
         if reset or not_exist:
             if not_exist:
