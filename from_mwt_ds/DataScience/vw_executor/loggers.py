@@ -1,6 +1,6 @@
 import logging
 import time
-import os
+from pathlib import Path
 
 from threading import Lock
 
@@ -97,8 +97,8 @@ class MultiFileLogger(_LoggerCore):
     def __init__(self, folder=None, level: str = 'INFO', tag=None):
         self.level_str = level
         self.folder = folder
-        os.makedirs(folder, exist_ok=True)
-        impl = FileLoggerUnsafe(os.path.join(folder, f'{tag or "default"}.txt'))
+        Path(folder).mkdir(parents=True, exist_ok=True)
+        impl = FileLoggerUnsafe(Path(folder).joinpath(f'{tag or "default"}.txt'))
         super().__init__(impl, logging.getLevelName(self.level_str), None)
 
     def __getitem__(self, key):

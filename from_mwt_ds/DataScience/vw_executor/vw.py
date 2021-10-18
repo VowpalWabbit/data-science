@@ -1,7 +1,10 @@
-import subprocess
-import os
-import pandas as pd
 import enum
+import multiprocessing
+from pathlib import Path
+import subprocess
+import time
+
+import pandas as pd
 
 from vw_executor.pool import SeqPool, MultiThreadPool
 from vw_executor import vw_opts
@@ -9,9 +12,6 @@ from vw_executor.loggers import MultiLoggers
 from vw_executor.handlers import Handlers
 from vw_executor.vw_cache import VwCache
 from vw_executor.handlers import WidgetHandler
-
-import multiprocessing
-from pathlib import Path
 
 
 def _safe_to_float(num: str, default):
@@ -38,7 +38,7 @@ def _to(value: str, types: list):
 
 def _parse_loss(loss_str):
     if loss_str.strip()[-1] == 'h':
-        loss_str = loss_str[:-1] 
+        loss_str = loss_str.strip()[:-1] 
     return _safe_to_float(loss_str, None)
 
 def _extract_metrics(out_lines):
@@ -100,15 +100,16 @@ class Output:
         self._loss = None
         self._loss_table = None
         self._metrics = None
-
-    def raw(self):
-        return open(self.path, 'r').readlines()
-
+    
     def _process(self):
         self._processed = True
-        self._loss_table, self._metrics = _extract_metrics(self.raw())
+        self._loss_table, self._metrics = _extract_metrics(self.raw)
         if 'average loss' in self._metrics:
             self._loss = self._metrics['average loss']
+
+    @property
+    def raw(self):
+        return open(self.path, 'r').readlines()
     
     @property
     def loss(self):
@@ -139,15 +140,17 @@ class Task:
         self.model_folder = model_folder
         self._no_run = no_run
         self.args = self._prepare_args(self._job.cache)
+        self.start_time = None
+        self.end_time = None
         self.stdout = None
 
     def _prepare_args(self, cache):
         opts = self._job.opts.copy()
         opts[self._job.input_mode] = self.input_file
 
-        input_full = os.path.join(self.input_folder, self.input_file)
+        input_full = Path(self.input_folder).joinpath(self.input_file)
 
-        salt = os.path.getsize(input_full)
+        salt = Path(input_full).stat().st_size
         if self.model_file:
             opts['-i'] = self.model_file
 
@@ -157,7 +160,7 @@ class Task:
         self.stdout_path = Path(cache.path).joinpath(cache.get_path(opts, None, salt, self._logger))
 
         if self.model_file:
-            opts['-i'] = os.path.join(self.model_folder, self.model_file)
+            opts['-i'] = Path(self.model_folder).joinpath(self.model_file)
 
         opts[self._job.input_mode] = input_full
         opts = dict(opts, **self.outputs)
@@ -178,8 +181,8 @@ class Task:
 
     def run(self, reset):
         result_files = list(self.outputs.values()) + [self.stdout_path]
-        not_exist = next((p for p in result_files if not os.path.exists(p)), None)
-
+        not_exist = next((p for p in result_files if not Path(p).exists()), None)
+        self.start_time = time.time()
         if reset or not_exist:
             if not_exist:
                 self._logger.debug(f'{not_exist} had not been found.')
@@ -190,7 +193,7 @@ class Task:
             _save(result, self.stdout_path)
         else:
             self._logger.debug(f'Result of vw execution is found: {self.args}')
-
+        self.end_time = time.time()
         self.stdout = Output(self.stdout_path)
         self.status = ExecutionStatus.Success if self.stdout.loss is not None else ExecutionStatus.Failed
 
@@ -207,7 +210,11 @@ class Task:
 
     @property
     def metrics(self):
-        return self.stdout.metrics if self.stdout else None         
+        return self.stdout.metrics if self.stdout else None   
+
+    @property
+    def runtime_s(self):
+        return self.end_time - self.start_time if self.end_time else None      
 
 
 class Job:
@@ -261,6 +268,14 @@ class Job:
         return dict(self.opts, **{'!Loss': self.loss,
                 '!Job': self})
 
+    @property
+    def runtime_s(self):
+        return self[-1].end_time - self[0].start_time if self[-1].end_time else None
+
+    @property
+    def metrics(self):
+        return pd.DataFrame([t.metrics for t in self._tasks])
+
 class TestJob(Job):
     def __init__(self, vw_path, cache, files, input_dir, opts, outputs, input_mode, no_run, handler, logger):
         super().__init__(vw_path, cache, opts, outputs, input_mode, handler, logger)
@@ -278,6 +293,12 @@ class TrainJob(Job):
             self._tasks.append(Task(self, self._logger, f, input_dir, model, cache.path, no_run))
 
 
+def _assert_path_is_supported(path):
+    if ' -' in path:
+        raise ValueError(f'Paths that are containing " -" as substring are not supported: {path}')
+    return path
+
+
 class Vw:
     def __init__(self, path, cache_path,
         procs=max(1, multiprocessing.cpu_count() // 2),
@@ -285,8 +306,8 @@ class Vw:
         reset=False,
         handlers=[WidgetHandler()],
         loggers=None):
-        self.path = path
-        self._cache = VwCache(cache_path)
+        self.path = _assert_path_is_supported(path)
+        self._cache = VwCache(_assert_path_is_supported(cache_path))
         self.logger = MultiLoggers(loggers or [])
         self.pool = SeqPool() if procs == 1 else MultiThreadPool(procs)
         self.no_run = no_run
@@ -307,6 +328,7 @@ class Vw:
     def _run_on_dict(self, inputs, opts, outputs, input_mode, input_dir, job_type):
         if not isinstance(inputs, list):
             inputs = [inputs]
+        inputs = [_assert_path_is_supported(i) for i in inputs]
         self.handler.on_start(inputs, opts)
         if isinstance(opts, list):
             args = [(inputs, point, outputs, input_mode, input_dir, job_type) for point in opts]
@@ -325,6 +347,8 @@ class Vw:
                 result_pd.append(t.to_dict())
             return pd.DataFrame(result_pd)
         else:
+            if isinstance(opts, str):
+                opts = {'#0': opts} 
             return self._run_on_dict(inputs, opts, outputs, input_mode, input_dir, job_type)
 
     def cache(self, inputs, opts, input_dir=''):

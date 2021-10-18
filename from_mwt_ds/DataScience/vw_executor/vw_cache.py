@@ -1,12 +1,11 @@
-import os
-
+from pathlib import Path
 from vw_executor import loggers
 
 
 class VwCache:
     def __init__(self, path: str):
         self.path = path
-        os.makedirs(self.path, exist_ok=True)
+        Path(self.path).mkdir(parents=True, exist_ok=True)
 
     @staticmethod
     def _file_name(string_hash: str) -> str:
@@ -14,9 +13,9 @@ class VwCache:
         return hashlib.md5(string_hash.encode('utf-8')).hexdigest()
 
     def _get_path(self, context: str, args_hash: str) -> str:
-        folder_name = os.path.join(self.path, context)
-        os.makedirs(folder_name, exist_ok=True)
-        return os.path.join(context, VwCache._file_name(args_hash))
+        folder_name = Path(self.path).joinpath(context)
+        Path(folder_name).mkdir(parents=True, exist_ok=True)
+        return Path(context).joinpath(VwCache._file_name(args_hash))
 
     def get_path(self, opts: dict, output: str = None, salt: str = None, logger=loggers.ConsoleLogger()) -> str:
         from vw_executor import vw_opts
