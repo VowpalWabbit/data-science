@@ -12,6 +12,7 @@ from vw_executor.handlers import WidgetHandler
 
 import multiprocessing
 from pathlib import Path
+import time
 
 
 def _safe_to_float(num: str, default):
@@ -131,6 +132,8 @@ class Task:
         self.model_folder = model_folder
         self._no_run = no_run
         self.args = self._prepare_args(self._job.cache)
+        self.start_time = None
+        self.end_time = None
         self.stdout = None
 
     def _prepare_args(self, cache):
@@ -171,7 +174,7 @@ class Task:
     def run(self, reset):
         result_files = list(self.outputs.values()) + [self.stdout_path]
         not_exist = next((p for p in result_files if not os.path.exists(p)), None)
-
+        self.start_time = time.time()
         if reset or not_exist:
             if not_exist:
                 self._logger.debug(f'{not_exist} had not been found.')
@@ -182,7 +185,7 @@ class Task:
             _save(result, self.stdout_path)
         else:
             self._logger.debug(f'Result of vw execution is found: {self.args}')
-
+        self.end_time = time.time()
         self.stdout = Output(self.stdout_path)
         self.status = ExecutionStatus.Success if self.stdout.loss is not None else ExecutionStatus.Failed
 
@@ -199,7 +202,11 @@ class Task:
 
     @property
     def metrics(self):
-        return self.stdout.metrics if self.stdout else None         
+        return self.stdout.metrics if self.stdout else None   
+
+    @property
+    def runtime_s(self):
+        return self.end_time - self.start_time if self.end_time else None      
 
 
 class Job:
@@ -252,6 +259,10 @@ class Job:
     def to_dict(self):
         return dict(self.opts, **{'!Loss': self.loss,
                 '!Job': self})
+
+    @property
+    def runtime_s(self):
+        return self[-1].end_time - self[0].start_time if self[-1].end_time else None
 
 class TestJob(Job):
     def __init__(self, vw_path, cache, files, input_dir, opts, outputs, input_mode, no_run, handler, logger):
