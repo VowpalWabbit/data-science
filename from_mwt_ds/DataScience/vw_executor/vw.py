@@ -340,6 +340,8 @@ class Vw:
                 result_pd.append(t.to_dict())
             return pd.DataFrame(result_pd)
         else:
+            if isinstance(opts, str):
+                opts = {'#0': opts} 
             return self._run_on_dict(inputs, opts, outputs, input_mode, input_dir, job_type)
 
     def cache(self, inputs, opts, input_dir=''):
