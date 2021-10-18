@@ -39,7 +39,7 @@ def _to(value: str, types: list):
 
 def _parse_loss(loss_str):
     if loss_str.strip()[-1] == 'h':
-        loss_str = loss_str[:-1] 
+        loss_str = loss_str.strip()[:-1] 
     return _safe_to_float(loss_str, None)
 
 def _extract_metrics(out_lines):
