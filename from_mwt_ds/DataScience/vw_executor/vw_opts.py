@@ -1,3 +1,4 @@
+import hashlib
 import pandas as pd
 
 class VwOpts(dict):
@@ -11,9 +12,15 @@ class VwOpts(dict):
         return ' '.join(['{0} {1}'.format(str(key).strip(), str(self[key]).strip()) if not key.startswith('#')
                         else str(self[key]) for key in sorted(not_none.keys())])
 
+    def __eq__(self, other):
+        return self.hash() == other.hash()
+
+    def __hash__(self) -> int:     
+        return int(hashlib.md5(self.hash().encode('utf-8')).hexdigest(), 16)
+
     def hash(self) -> str:
         items = [i.strip() for i in f' {str(self)}'.split(' -')]
-        return ' '.join(sorted(items)).strip() 
+        return ' '.join(sorted(items)).strip()   
 
     def to_cache_cmd(self) -> str:
         import argparse
