@@ -1,6 +1,6 @@
 import pandas as pd
 
-class _VwOpts(dict):
+class VwOpts(dict):
     def __init__(self, opts):
         if isinstance(opts, str):
             opts = {'#0': opts}

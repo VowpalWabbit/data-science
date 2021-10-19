@@ -12,7 +12,7 @@ from vw_executor.loggers import _MultiLoggers
 from vw_executor.handlers import _Handlers
 from vw_executor.vw_cache import VwCache
 from vw_executor.handlers import ProgressBars
-from vw_executor.vw_opts import _VwOpts
+from vw_executor.vw_opts import VwOpts
 
 
 def _safe_to_float(num: str, default):
@@ -159,7 +159,7 @@ class Task:
             opts['-i'] = Path(self.model_folder).joinpath(self.model_file)
 
         opts[self._job.input_mode] = input_full
-        opts = _VwOpts(dict(opts, **self.outputs))
+        opts = VwOpts(dict(opts, **self.outputs))
         return str(opts)
 
     def _execute(self):
@@ -218,7 +218,7 @@ class Job:
         self._vw_path = vw_path
         self._cache = cache
         self.opts = opts
-        self.name = str(_VwOpts({k: opts[k] for k in _VwOpts(opts).keys() - {'#base'}}))
+        self.name = str(VwOpts({k: opts[k] for k in VwOpts(opts).keys() - {'#base'}}))
         self._logger = logger[self.name]
         self.input_mode = input_mode
         self.failed = None
@@ -316,7 +316,7 @@ class Vw:
                   loggers if loggers is not None else self.logger.loggers)
 
     def _run_impl(self, inputs, opts, outputs, input_mode, input_dir, job_type):
-        job = job_type(self.path, self._cache, inputs, input_dir, _VwOpts(opts), outputs, input_mode, self.no_run,
+        job = job_type(self.path, self._cache, inputs, input_dir, VwOpts(opts), outputs, input_mode, self.no_run,
                        self.handler, self.logger)
         return job._run(self.reset)
 
@@ -347,16 +347,16 @@ class Vw:
     def cache(self, inputs, opts, input_dir=''):
         if isinstance(opts, pd.DataFrame):
             opts = opts.loc[:, ~opts.columns.str.startswith('!')].to_dict('records') 
-            cache_opts = [o_dedup for o_dedup in {_VwOpts(o).to_cache_cmd() for o in opts}]
+            cache_opts = [o_dedup for o_dedup in {VwOpts(o).to_cache_cmd() for o in opts}]
             result = self._run_on_dict(inputs, cache_opts, [], '-d', input_dir, TestJob)
             result_pd = []
             for t in result:
                 result_pd.append(t.to_dict())
             return pd.DataFrame(result_pd)
         elif isinstance(opts, list):
-            cache_opts = [o_dedup for o_dedup in {_VwOpts(o).to_cache_cmd() for o in opts}]
+            cache_opts = [o_dedup for o_dedup in {VwOpts(o).to_cache_cmd() for o in opts}]
         else:
-            cache_opts = _VwOpts(opts).to_cache_cmd()
+            cache_opts = VwOpts(opts).to_cache_cmd()
         return self._run(inputs, cache_opts, ['--cache_file'], '-d', input_dir, TestJob)
 
     def train(self, inputs, opts, outputs=None, input_mode='-d', input_dir=''):
