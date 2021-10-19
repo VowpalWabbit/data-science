@@ -139,7 +139,7 @@ class Task:
         self.model_file = model_file
         self.model_folder = model_folder
         self._no_run = no_run
-        self.args = self._prepare_args(self._job.cache)
+        self.args = self._prepare_args(self._job._cache)
         self.start_time = None
         self.end_time = None
         self.stdout = None
@@ -167,7 +167,7 @@ class Task:
         return vw_opts.to_string(opts)
 
     def _run(self):
-        command = f'{self._job.vw_path} {self.args}'
+        command = f'{self._job._vw_path} {self.args}'
         self._logger.debug(f'Executing: {command}')
         process = subprocess.Popen(
             command.split(),
@@ -219,8 +219,8 @@ class Task:
 
 class Job:
     def __init__(self, vw_path, cache, opts, outputs, input_mode, handler, logger):
-        self.vw_path = vw_path
-        self.cache = cache
+        self._vw_path = vw_path
+        self._cache = cache
         self.opts = opts
         self.name = vw_opts.to_string({k: opts[k] for k in opts.keys() - {'#base'}})
         self._logger = logger[self.name]
