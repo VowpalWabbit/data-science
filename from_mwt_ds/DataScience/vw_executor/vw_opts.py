@@ -16,11 +16,11 @@ class VwOpts(dict):
         return self.hash() == other.hash()
 
     def __hash__(self) -> int:     
-        return int(hashlib.md5(self.hash().encode('utf-8')).hexdigest(), 16)
+        return int(self.hash(), 16)
 
     def hash(self) -> str:
         items = [i.strip() for i in f' {str(self)}'.split(' -')]
-        return ' '.join(sorted(items)).strip()   
+        return hashlib.md5(' '.join(sorted(items)).strip().encode('utf-8')).hexdigest()   
 
     def to_cache_cmd(self) -> str:
         import argparse
