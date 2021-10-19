@@ -8,10 +8,11 @@ import pandas as pd
 
 from vw_executor.pool import SeqPool, MultiThreadPool
 from vw_executor import vw_opts
-from vw_executor.loggers import MultiLoggers
-from vw_executor.handlers import Handlers
+from vw_executor.loggers import _MultiLoggers
+from vw_executor.handlers import _Handlers
 from vw_executor.vw_cache import VwCache
-from vw_executor.handlers import WidgetHandler
+from vw_executor.handlers import ProgressBars
+from vw_executor.vw_opts import VwOpts
 
 
 def _safe_to_float(num: str, default):
@@ -81,11 +82,6 @@ def _save(txt, path):
         f.write(txt)
 
 
-def _load(path):
-    with open(path, 'r') as f:
-        return f.read()
-
-
 class ExecutionStatus(enum.Enum):
     NotStarted = 1
     Running = 2
@@ -139,7 +135,7 @@ class Task:
         self.model_file = model_file
         self.model_folder = model_folder
         self._no_run = no_run
-        self.args = self._prepare_args(self._job.cache)
+        self.args = self._prepare_args(self._job._cache)
         self.start_time = None
         self.end_time = None
         self.stdout = None
@@ -163,11 +159,11 @@ class Task:
             opts['-i'] = Path(self.model_folder).joinpath(self.model_file)
 
         opts[self._job.input_mode] = input_full
-        opts = dict(opts, **self.outputs)
-        return vw_opts.to_string(opts)
+        opts = VwOpts(dict(opts, **self.outputs))
+        return str(opts)
 
-    def _run(self):
-        command = f'{self._job.vw_path} {self.args}'
+    def _execute(self):
+        command = f'{self._job._vw_path} {self.args}'
         self._logger.debug(f'Executing: {command}')
         process = subprocess.Popen(
             command.split(),
@@ -179,7 +175,7 @@ class Task:
         error = process.communicate()[1]
         return error
 
-    def run(self, reset):
+    def _run(self, reset):
         result_files = list(self.outputs.values()) + [self.stdout_path]
         not_exist = next((p for p in result_files if not Path(p).exists()), None)
         self.start_time = time.time()
@@ -189,7 +185,7 @@ class Task:
             if self._no_run:
                 raise Exception('Result is not found, and execution is deprecated')
 
-            result = self._run()
+            result = self._execute()
             _save(result, self.stdout_path)
         else:
             self._logger.debug(f'Result of vw execution is found: {self.args}')
@@ -219,10 +215,10 @@ class Task:
 
 class Job:
     def __init__(self, vw_path, cache, opts, outputs, input_mode, handler, logger):
-        self.vw_path = vw_path
-        self.cache = cache
+        self._vw_path = vw_path
+        self._cache = cache
         self.opts = opts
-        self.name = vw_opts.to_string({k: opts[k] for k in opts.keys() - {'#base'}})
+        self.name = str(VwOpts({k: opts[k] for k in VwOpts(opts).keys() - {'#base'}}))
         self._logger = logger[self.name]
         self.input_mode = input_mode
         self.failed = None
@@ -231,16 +227,16 @@ class Job:
         self.outputs = {o: [] for o in outputs}
         self._tasks = []
 
-    def run(self, reset):
+    def _run(self, reset):
         self._handler.on_job_start(self)
-        self._logger.debug('Starting job...')
+        self._logger.info('Starting job...')
         self.status = ExecutionStatus.Running
         for i, t in enumerate(self._tasks):
-            self._logger.debug(f'Starting task {i}...')
+            self._logger.info(f'Starting task {i}...     File name: {t.input_file}')
             self._handler.on_task_start(self, i)
-            t.run(reset)
+            t._run(reset)
             self._handler.on_task_finish(self, i)
-            self._logger.debug(f'Task {i} is finished: {t.status}')
+            self._logger.info(f'Task {i} is finished: {t.status}')
             if t.status == ExecutionStatus.Failed:
                 self.failed = t
                 break
@@ -248,7 +244,7 @@ class Job:
                 self.outputs[p].append(t.outputs[p])
 
         self.status = self.failed.status if self.failed is not None else ExecutionStatus.Success
-        self._logger.debug(f'Job is finished: {self.status}')
+        self._logger.info(f'Job is finished: {self.status}')
         self._handler.on_job_finish(self)
         return self
     
@@ -265,8 +261,7 @@ class Job:
                       for i, t in enumerate(self._tasks)]).reset_index().set_index(['file', 'i'])
 
     def to_dict(self):
-        return dict(self.opts, **{'!Loss': self.loss,
-                '!Job': self})
+        return dict(self.opts, **{'!Loss': self.loss, '!Job': self})
 
     @property
     def runtime_s(self):
@@ -304,26 +299,26 @@ class Vw:
         procs=max(1, multiprocessing.cpu_count() // 2),
         no_run=False,
         reset=False,
-        handlers=[WidgetHandler()],
+        handlers=[ProgressBars()],
         loggers=None):
         self.path = _assert_path_is_supported(path)
         self._cache = VwCache(_assert_path_is_supported(cache_path))
-        self.logger = MultiLoggers(loggers or [])
+        self.logger = _MultiLoggers(loggers or [])
         self.pool = SeqPool() if procs == 1 else MultiThreadPool(procs)
         self.no_run = no_run
-        self.handler = Handlers(handlers or [])
+        self.handler = _Handlers(handlers or [])
         self.reset = reset
 
     def _with(self, path=None, cache_path=None, procs=None, no_run=None, reset=None, handlers=None, loggers=None):
         return Vw(path or self.path, cache_path or self._cache.path, procs or self.pool.procs,
                   no_run if no_run is not None else self.no_run,
-                  reset if reset is not None else self.reset, handlers or self.handler.handlers,
-                  loggers or self.logger.loggers)
+                  reset if reset is not None else self.reset, handlers if handlers is not None else self.handler.handlers,
+                  loggers if loggers is not None else self.logger.loggers)
 
     def _run_impl(self, inputs, opts, outputs, input_mode, input_dir, job_type):
-        job = job_type(self.path, self._cache, inputs, input_dir, opts, outputs, input_mode, self.no_run,
+        job = job_type(self.path, self._cache, inputs, input_dir, VwOpts(opts), outputs, input_mode, self.no_run,
                        self.handler, self.logger)
-        return job.run(self.reset)
+        return job._run(self.reset)
 
     def _run_on_dict(self, inputs, opts, outputs, input_mode, input_dir, job_type):
         if not isinstance(inputs, list):
@@ -347,15 +342,21 @@ class Vw:
                 result_pd.append(t.to_dict())
             return pd.DataFrame(result_pd)
         else:
-            if isinstance(opts, str):
-                opts = {'#0': opts} 
             return self._run_on_dict(inputs, opts, outputs, input_mode, input_dir, job_type)
 
     def cache(self, inputs, opts, input_dir=''):
-        if isinstance(opts, list):
-            cache_opts = [{'#cmd': o_dedup} for o_dedup in set([vw_opts.to_cache_cmd(o) for o in opts])]
+        if isinstance(opts, pd.DataFrame):
+            opts = opts.loc[:, ~opts.columns.str.startswith('!')].to_dict('records') 
+            cache_opts = [o_dedup for o_dedup in {VwOpts(o).to_cache_cmd() for o in opts}]
+            result = self._run_on_dict(inputs, cache_opts, [], '-d', input_dir, TestJob)
+            result_pd = []
+            for t in result:
+                result_pd.append(t.to_dict())
+            return pd.DataFrame(result_pd)
+        elif isinstance(opts, list):
+            cache_opts = [o_dedup for o_dedup in {VwOpts(o).to_cache_cmd() for o in opts}]
         else:
-            cache_opts = {'#cmd': vw_opts.to_cache_cmd(opts)}
+            cache_opts = VwOpts(opts).to_cache_cmd()
         return self._run(inputs, cache_opts, ['--cache_file'], '-d', input_dir, TestJob)
 
     def train(self, inputs, opts, outputs=None, input_mode='-d', input_dir=''):

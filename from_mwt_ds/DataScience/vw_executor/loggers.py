@@ -32,11 +32,11 @@ class _LoggerCore:
             self._trace(message)
 
     def _trace(self, message: str):
-        prefix = f'[{self.tag or ""}][{time.strftime("%d-%m-%Y %H:%M:%S", time.localtime(time.time()))}]'
+        prefix = f'[{time.strftime("%d-%m-%Y %H:%M:%S", time.localtime(time.time()))}][{self.tag or ""}]'
         self.impl.trace(f'{prefix} {message}')
 
 
-class ConsoleLoggerImpl:
+class _ConsoleLoggerImpl:
     def __init__(self):
         self.lock = Lock()
 
@@ -46,7 +46,7 @@ class ConsoleLoggerImpl:
         self.lock.release()
 
 
-class FileLoggerSafe:
+class _FileLoggerSafe:
     def __init__(self, path):
         self.lock = Lock()
         self.path = path
@@ -58,7 +58,7 @@ class FileLoggerSafe:
         self.lock.release()
 
 
-class FileLoggerUnsafe:
+class _FileLoggerUnsafe:
     def __init__(self, path):
         self.path = path
 
@@ -68,7 +68,7 @@ class FileLoggerUnsafe:
 
 
 class ConsoleLogger(_LoggerCore):
-    def __init__(self, level: str = 'INFO', tag=None, impl=ConsoleLoggerImpl()):
+    def __init__(self, level: str = 'INFO', tag=None, impl=_ConsoleLoggerImpl()):
         self.level_str = level
         super().__init__(impl, logging.getLevelName(self.level_str), tag)
 
@@ -83,7 +83,7 @@ class FileLogger(_LoggerCore):
     def __init__(self, path=None, level: str = 'INFO', tag=None, impl=None):
         self.level_str = level
         if not impl:
-            impl = FileLoggerSafe(path)
+            impl = _FileLoggerSafe(path)
         super().__init__(impl, logging.getLevelName(self.level_str), tag)
 
     def __getitem__(self, key):
@@ -98,7 +98,7 @@ class MultiFileLogger(_LoggerCore):
         self.level_str = level
         self.folder = folder
         Path(folder).mkdir(parents=True, exist_ok=True)
-        impl = FileLoggerUnsafe(Path(folder).joinpath(f'{tag or "default"}.txt'))
+        impl = _FileLoggerUnsafe(Path(folder).joinpath(f'{tag or "default"}.txt'))
         super().__init__(impl, logging.getLevelName(self.level_str), None)
 
     def __getitem__(self, key):
@@ -108,7 +108,7 @@ class MultiFileLogger(_LoggerCore):
         self.impl.trace(message)
 
 
-class MultiLoggers:
+class _MultiLoggers:
     def __init__(self, loggers: list):
         self.loggers = loggers
 
@@ -133,4 +133,4 @@ class MultiLoggers:
             logger.critical(message)
 
     def __getitem__(self, key):
-        return MultiLoggers([logger[key] for logger in self.loggers])
+        return _MultiLoggers([logger[key] for logger in self.loggers])

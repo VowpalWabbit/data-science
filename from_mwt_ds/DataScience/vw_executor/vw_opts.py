@@ -1,16 +1,59 @@
 import pandas as pd
 
+class VwOpts(dict):
+    def __init__(self, opts):
+        if isinstance(opts, str):
+            opts = {'#0': opts}
+        super().__init__(opts)
 
-def string_hash(cmd: str) -> str:
-    items = [i.strip() for i in f' {cmd}'.split(' -')]
-    items.sort()
-    return ' '.join(items).strip()
+    def __str__(self) -> str:
+        not_none = {k: v for k,v in self.items() if v is not None}
+        return ' '.join(['{0} {1}'.format(str(key).strip(), str(self[key]).strip()) if not key.startswith('#')
+                        else str(self[key]) for key in sorted(not_none.keys())])
 
+    def hash(self) -> str:
+        items = [i.strip() for i in f' {str(self)}'.split(' -')]
+        return ' '.join(sorted(items)).strip() 
 
-def to_string(opts: dict) -> str:
-    return ' '.join(['{0} {1}'.format(key, opts[key]) if not key.startswith('#')
-                     else str(opts[key]) for key in sorted(opts.keys())])
+    def to_cache_cmd(self) -> str:
+        import argparse
+        parser = argparse.ArgumentParser(add_help=False)
 
+        parser.add_argument('-b', '--bit_precision', type=int)
+
+        parser.add_argument('--ccb_explore_adf', action='store_true')
+        parser.add_argument('--cb_explore_adf', action='store_true')
+        parser.add_argument('--cb_adf', action='store_true')
+        parser.add_argument('--slates', action='store_true')
+
+        parser.add_argument('--json', action='store_true')
+        parser.add_argument('--dsjson', action='store_true')
+        parser.add_argument('--cats', action='store_true')
+
+        parser.add_argument('--compressed', action='store_true')
+        namespace, _ = parser.parse_known_args(str(self).split())
+        result = ''
+        if namespace.cb_adf:
+            result = result + '--cb_adf '
+        if namespace.cb_explore_adf:
+            result = result + '--cb_explore_adf '
+        if namespace.ccb_explore_adf:
+            result = result + '--ccb_explore_adf '
+        if namespace.slates:
+            result = result + '--slates '
+        if namespace.json:
+            result = result + '--json '
+        if namespace.dsjson:
+            result = result + '--dsjson '
+        if namespace.compressed:
+            result = result + '--compressed '
+        if namespace.bit_precision:
+            result = result + f'-b {namespace.bit_precision} '
+        if namespace.cats:
+            result = result + f'--cats 1 --bandwidth 1 --min_value 0 --max_value 1 '
+
+        return result.strip()
+       
 
 def _dim_to_list(d):
     if isinstance(d, pd.DataFrame):
@@ -32,44 +75,3 @@ def product(*dimensions: list) -> list:
 
 def dimension(name: str, values: list) -> list:
     return [{name: v} for v in values]
-
-
-def to_cache_cmd(opts: dict) -> str:
-    import argparse
-    parser = argparse.ArgumentParser(add_help=False)
-
-    parser.add_argument('-b', '--bit_precision', type=int)
-
-    parser.add_argument('--ccb_explore_adf', action='store_true')
-    parser.add_argument('--cb_explore_adf', action='store_true')
-    parser.add_argument('--cb_adf', action='store_true')
-    parser.add_argument('--slates', action='store_true')
-
-    parser.add_argument('--json', action='store_true')
-    parser.add_argument('--dsjson', action='store_true')
-    parser.add_argument('--cats', action='store_true')
-
-    parser.add_argument('--compressed', action='store_true')
-
-    namespace, _ = parser.parse_known_args(to_string(opts).split())
-    result = ''
-    if namespace.cb_adf:
-        result = result + '--cb_adf '
-    if namespace.cb_explore_adf:
-        result = result + '--cb_explore_adf '
-    if namespace.ccb_explore_adf:
-        result = result + '--ccb_explore_adf '
-    if namespace.slates:
-        result = result + '--slates '
-    if namespace.json:
-        result = result + '--json '
-    if namespace.dsjson:
-        result = result + '--dsjson '
-    if namespace.compressed:
-        result = result + '--compressed '
-    if namespace.bit_precision:
-        result = result + f'-b {namespace.bit_precision} '
-    if namespace.cats:
-        result = result + f'--cats 1 --bandwidth 1 --min_value 0 --max_value 1 '
-
-    return result.strip()

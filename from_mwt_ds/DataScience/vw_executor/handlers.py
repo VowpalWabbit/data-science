@@ -2,7 +2,7 @@ import os
 import shutil
 
 
-class WidgetHandler:      
+class ProgressBars:      
     def __init__(self, leave=False):
         self.total = None
         self.tasks = 0
@@ -83,7 +83,7 @@ class AzureMLHandler:
                 self.context.log(key, value)
 
 
-class Handlers:
+class _Handlers:
     def __init__(self, handlers):
         self.handlers = handlers
 
