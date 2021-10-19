@@ -166,7 +166,7 @@ class Task:
         opts = dict(opts, **self.outputs)
         return vw_opts.to_string(opts)
 
-    def _run(self):
+    def _execute(self):
         command = f'{self._job._vw_path} {self.args}'
         self._logger.debug(f'Executing: {command}')
         process = subprocess.Popen(
@@ -179,7 +179,7 @@ class Task:
         error = process.communicate()[1]
         return error
 
-    def run(self, reset):
+    def _run(self, reset):
         result_files = list(self.outputs.values()) + [self.stdout_path]
         not_exist = next((p for p in result_files if not Path(p).exists()), None)
         self.start_time = time.time()
@@ -189,7 +189,7 @@ class Task:
             if self._no_run:
                 raise Exception('Result is not found, and execution is deprecated')
 
-            result = self._run()
+            result = self._execute()
             _save(result, self.stdout_path)
         else:
             self._logger.debug(f'Result of vw execution is found: {self.args}')
@@ -238,7 +238,7 @@ class Job:
         for i, t in enumerate(self._tasks):
             self._logger.info(f'Starting task {i}...     File name: {t.input_file}')
             self._handler.on_task_start(self, i)
-            t.run(reset)
+            t._run(reset)
             self._handler.on_task_finish(self, i)
             self._logger.info(f'Task {i} is finished: {t.status}')
             if t.status == ExecutionStatus.Failed:
