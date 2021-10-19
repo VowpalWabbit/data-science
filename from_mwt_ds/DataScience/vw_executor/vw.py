@@ -12,6 +12,7 @@ from vw_executor.loggers import _MultiLoggers
 from vw_executor.handlers import _Handlers
 from vw_executor.vw_cache import VwCache
 from vw_executor.handlers import ProgressBars
+from vw_executor.vw_opts import _VwOpts
 
 
 def _safe_to_float(num: str, default):
@@ -79,11 +80,6 @@ def _extract_metrics(out_lines):
 def _save(txt, path):
     with open(path, 'w') as f:
         f.write(txt)
-
-
-def _load(path):
-    with open(path, 'r') as f:
-        return f.read()
 
 
 class ExecutionStatus(enum.Enum):
@@ -163,8 +159,8 @@ class Task:
             opts['-i'] = Path(self.model_folder).joinpath(self.model_file)
 
         opts[self._job.input_mode] = input_full
-        opts = dict(opts, **self.outputs)
-        return vw_opts.to_string(opts)
+        opts = _VwOpts(dict(opts, **self.outputs))
+        return str(opts)
 
     def _execute(self):
         command = f'{self._job._vw_path} {self.args}'
@@ -222,7 +218,7 @@ class Job:
         self._vw_path = vw_path
         self._cache = cache
         self.opts = opts
-        self.name = vw_opts.to_string({k: opts[k] for k in opts.keys() - {'#base'}})
+        self.name = str(_VwOpts({k: opts[k] for k in _VwOpts(opts).keys() - {'#base'}}))
         self._logger = logger[self.name]
         self.input_mode = input_mode
         self.failed = None
@@ -320,7 +316,7 @@ class Vw:
                   loggers if loggers is not None else self.logger.loggers)
 
     def _run_impl(self, inputs, opts, outputs, input_mode, input_dir, job_type):
-        job = job_type(self.path, self._cache, inputs, input_dir, opts, outputs, input_mode, self.no_run,
+        job = job_type(self.path, self._cache, inputs, input_dir, _VwOpts(opts), outputs, input_mode, self.no_run,
                        self.handler, self.logger)
         return job._run(self.reset)
 
@@ -346,15 +342,21 @@ class Vw:
                 result_pd.append(t.to_dict())
             return pd.DataFrame(result_pd)
         else:
-            if isinstance(opts, str):
-                opts = {'#0': opts} 
             return self._run_on_dict(inputs, opts, outputs, input_mode, input_dir, job_type)
 
     def cache(self, inputs, opts, input_dir=''):
-        if isinstance(opts, list):
-            cache_opts = [{'#cmd': o_dedup} for o_dedup in set([vw_opts.to_cache_cmd(o) for o in opts])]
+        if isinstance(opts, pd.DataFrame):
+            opts = opts.loc[:, ~opts.columns.str.startswith('!')].to_dict('records') 
+            cache_opts = [o_dedup for o_dedup in {_VwOpts(o).to_cache_cmd() for o in opts}]
+            result = self._run_on_dict(inputs, cache_opts, [], '-d', input_dir, TestJob)
+            result_pd = []
+            for t in result:
+                result_pd.append(t.to_dict())
+            return pd.DataFrame(result_pd)
+        elif isinstance(opts, list):
+            cache_opts = [o_dedup for o_dedup in {_VwOpts(o).to_cache_cmd() for o in opts}]
         else:
-            cache_opts = {'#cmd': vw_opts.to_cache_cmd(opts)}
+            cache_opts = _VwOpts(opts).to_cache_cmd()
         return self._run(inputs, cache_opts, ['--cache_file'], '-d', input_dir, TestJob)
 
     def train(self, inputs, opts, outputs=None, input_mode='-d', input_dir=''):
