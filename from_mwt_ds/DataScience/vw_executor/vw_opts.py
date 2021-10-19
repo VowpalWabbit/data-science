@@ -77,8 +77,8 @@ def product(*dimensions: list) -> list:
             lambda t: dict(t[0], **t[1]),
             itertools.product(_dim_to_list(d1), _dim_to_list(d2))
         ), dimensions)
-    return list(result)
+    return list([VwOpts(r) for r in result])
 
 
 def dimension(name: str, values: list) -> list:
-    return [{name: v} for v in values]
+    return [VwOpts({name: v}) for v in values]
