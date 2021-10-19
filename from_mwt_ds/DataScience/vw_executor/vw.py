@@ -233,14 +233,14 @@ class Job:
 
     def run(self, reset):
         self._handler.on_job_start(self)
-        self._logger.debug('Starting job...')
+        self._logger.info('Starting job...')
         self.status = ExecutionStatus.Running
         for i, t in enumerate(self._tasks):
-            self._logger.debug(f'Starting task {i}...')
+            self._logger.info(f'Starting task {i}...     File name: {t.input_file}')
             self._handler.on_task_start(self, i)
             t.run(reset)
             self._handler.on_task_finish(self, i)
-            self._logger.debug(f'Task {i} is finished: {t.status}')
+            self._logger.info(f'Task {i} is finished: {t.status}')
             if t.status == ExecutionStatus.Failed:
                 self.failed = t
                 break
@@ -248,7 +248,7 @@ class Job:
                 self.outputs[p].append(t.outputs[p])
 
         self.status = self.failed.status if self.failed is not None else ExecutionStatus.Success
-        self._logger.debug(f'Job is finished: {self.status}')
+        self._logger.info(f'Job is finished: {self.status}')
         self._handler.on_job_finish(self)
         return self
     
