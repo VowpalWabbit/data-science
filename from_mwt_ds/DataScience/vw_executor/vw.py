@@ -231,7 +231,7 @@ class Job:
         self.outputs = {o: [] for o in outputs}
         self._tasks = []
 
-    def run(self, reset):
+    def _run(self, reset):
         self._handler.on_job_start(self)
         self._logger.info('Starting job...')
         self.status = ExecutionStatus.Running
@@ -322,7 +322,7 @@ class Vw:
     def _run_impl(self, inputs, opts, outputs, input_mode, input_dir, job_type):
         job = job_type(self.path, self._cache, inputs, input_dir, opts, outputs, input_mode, self.no_run,
                        self.handler, self.logger)
-        return job.run(self.reset)
+        return job._run(self.reset)
 
     def _run_on_dict(self, inputs, opts, outputs, input_mode, input_dir, job_type):
         if not isinstance(inputs, list):
