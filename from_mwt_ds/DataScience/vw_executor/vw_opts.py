@@ -31,7 +31,6 @@ class VwOpts(dict):
         parser.add_argument('--cats', action='store_true')
 
         parser.add_argument('--compressed', action='store_true')
-        print(str(self))
         namespace, _ = parser.parse_known_args(str(self).split())
         result = ''
         if namespace.cb_adf:
