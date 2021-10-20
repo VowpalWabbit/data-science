@@ -56,11 +56,11 @@ class TestDimension(unittest.TestCase):
 
         self.assertEqual(
             dimension('-o', [1, 2, 3]),
-            [{'-o': 1}, {'-o': 2}, {'-o': 3}])
+            list({VwOpts({'-o': 1}), VwOpts({'-o': 2}), VwOpts({'-o': 3})}))
 
         self.assertEqual(
             dimension('-o', ['value1', 'value2', 'value3']),
-            [{'-o': 'value1'}, {'-o': 'value2'}, {'-o': 'value3'}])
+            list({VwOpts({'-o': 'value1'}), VwOpts({'-o': 'value2'}), VwOpts({'-o': 'value3'})}))
 
 
 class TestProduct(unittest.TestCase):
@@ -105,7 +105,7 @@ class TestProduct(unittest.TestCase):
                 dimension('-o1', [1, 2]),
                 dimension('-o2', [1, 2])
             ),
-            [{'-o1': 1, '-o2': 1}, {'-o1': 1, '-o2': 2}, {'-o1': 2, '-o2': 1}, {'-o1': 2, '-o2': 2}])
+            list({VwOpts({'-o1': 1, '-o2': 1}), VwOpts({'-o1': 1, '-o2': 2}), VwOpts({'-o1': 2, '-o2': 1}), VwOpts({'-o1': 2, '-o2': 2})}))
 
 
 class TestCacheCmd(unittest.TestCase):
