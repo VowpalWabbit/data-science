@@ -1,6 +1,16 @@
 import unittest
-from vw_executor.vw_opts import VwOpts, dimension, product
+from vw_executor.vw_opts import VwOpts, dimension, product, Grid
 
+def assertGridEquals(tc, actual: Grid, expected: list):
+    expected = list([dict(o) for o in expected])
+    tc.assertEqual(len(actual), len(expected))
+    for e in expected:
+        found = False
+        for a in actual:
+            if dict(e) == dict(a):
+                found = True
+                break
+        tc.assertEqual(found, True)
 
 class TestStringHash(unittest.TestCase):
     def test_equal_after_normalize(self):
@@ -50,62 +60,62 @@ class TestToString(unittest.TestCase):
 
 class TestDimension(unittest.TestCase):
     def test_dimension(self):
-        self.assertEqual(
+        assertGridEquals(self,
             dimension('-o', []),
             [])
 
-        self.assertEqual(
+        assertGridEquals(self,
             dimension('-o', [1, 2, 3]),
-            list({VwOpts({'-o': 1}), VwOpts({'-o': 2}), VwOpts({'-o': 3})}))
+            [{'-o': 1}, {'-o': 2}, {'-o': 3}])
 
-        self.assertEqual(
+        assertGridEquals(self,
             dimension('-o', ['value1', 'value2', 'value3']),
-            list({VwOpts({'-o': 'value1'}), VwOpts({'-o': 'value2'}), VwOpts({'-o': 'value3'})}))
+            [{'-o': 'value1'}, {'-o': 'value2'}, {'-o': 'value3'}])
 
 
 class TestProduct(unittest.TestCase):
     def test_product(self):
-        self.assertEqual(
+        assertGridEquals(self,
             product(
                 dimension('-o1', []),
                 dimension('-o2', [])
             ),
             [])
 
-        self.assertEqual(
+        assertGridEquals(self,
             product(
                 dimension('-o1', [1, 2, 3]),
                 dimension('-o2', [])
             ),
             [])
 
-        self.assertEqual(
+        assertGridEquals(self,
             product(
                 dimension('-o1', []),
                 dimension('-o2', [1, 2, 3])
             ),
             [])
 
-        self.assertEqual(
+        assertGridEquals(self,
             product(
                 dimension('-o1', [1, 2, 3]),
                 [{}]
             ),
             dimension('-o1', [1, 2, 3]))
 
-        self.assertEqual(
+        assertGridEquals(self,
             product(
                 [{}],
                 dimension('-o2', [1, 2, 3])
             ),
             dimension('-o2', [1, 2, 3]))
 
-        self.assertEqual(
+        assertGridEquals(self,
             product(
                 dimension('-o1', [1, 2]),
                 dimension('-o2', [1, 2])
             ),
-            list({VwOpts({'-o1': 1, '-o2': 1}), VwOpts({'-o1': 1, '-o2': 2}), VwOpts({'-o1': 2, '-o2': 1}), VwOpts({'-o1': 2, '-o2': 2})}))
+            [{'-o1': 1, '-o2': 1}, {'-o1': 1, '-o2': 2}, {'-o1': 2, '-o2': 1}, {'-o1': 2, '-o2': 2}])
 
 
 class TestCacheCmd(unittest.TestCase):
