@@ -167,15 +167,15 @@ class TestGrid(unittest.TestCase):
             [{'a':1,'b':3},{'a':1,'b':4},{'a':2,'b':3},{'a':2,'b':4}])
 
     def test_grid_sum(self):
-        assertGridEqualsList(self,
+        self.assertEqual(
             Grid([]) + Grid([]),
-            [])
-        assertGridEqualsList(self,
+            Grid([]))
+        self.assertEqual(
             Grid(['--cb_explore_adf']) + Grid([]),
-            [{'#0': '--cb_explore_adf'}])
-        assertGridEqualsList(self,
+            Grid(['--cb_explore_adf']))
+        self.assertEqual(
             Grid([]) + Grid(['--cb_explore_adf']),
-            [{'#0': '--cb_explore_adf'}])
+            Grid(['--cb_explore_adf']))
         self.assertEqual(
             Grid(['--cb_explore_adf']) + Grid(['--cb_explore_adf']),
             Grid(['--cb_explore_adf']))
