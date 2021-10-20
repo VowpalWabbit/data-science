@@ -1,7 +1,7 @@
 import unittest
 from vw_executor.vw_opts import VwOpts, dimension, product, Grid
 
-def assertGridEquals(tc, actual: Grid, expected: list):
+def assertGridEqualsList(tc, actual: Grid, expected: list):
     expected = list([dict(o) for o in expected])
     tc.assertEqual(len(actual), len(expected))
     for e in expected:
@@ -11,6 +11,7 @@ def assertGridEquals(tc, actual: Grid, expected: list):
                 found = True
                 break
         tc.assertEqual(found, True)
+
 
 class TestStringHash(unittest.TestCase):
     def test_equal_after_normalize(self):
@@ -60,57 +61,57 @@ class TestToString(unittest.TestCase):
 
 class TestDimension(unittest.TestCase):
     def test_dimension(self):
-        assertGridEquals(self,
+        assertGridEqualsList(self,
             dimension('-o', []),
             [])
 
-        assertGridEquals(self,
+        assertGridEqualsList(self,
             dimension('-o', [1, 2, 3]),
             [{'-o': 1}, {'-o': 2}, {'-o': 3}])
 
-        assertGridEquals(self,
+        assertGridEqualsList(self,
             dimension('-o', ['value1', 'value2', 'value3']),
             [{'-o': 'value1'}, {'-o': 'value2'}, {'-o': 'value3'}])
 
 
 class TestProduct(unittest.TestCase):
     def test_product(self):
-        assertGridEquals(self,
+        assertGridEqualsList(self,
             product(
                 dimension('-o1', []),
                 dimension('-o2', [])
             ),
             [])
 
-        assertGridEquals(self,
+        assertGridEqualsList(self,
             product(
                 dimension('-o1', [1, 2, 3]),
                 dimension('-o2', [])
             ),
             [])
 
-        assertGridEquals(self,
+        assertGridEqualsList(self,
             product(
                 dimension('-o1', []),
                 dimension('-o2', [1, 2, 3])
             ),
             [])
 
-        assertGridEquals(self,
+        assertGridEqualsList(self,
             product(
                 dimension('-o1', [1, 2, 3]),
                 [{}]
             ),
             dimension('-o1', [1, 2, 3]))
 
-        assertGridEquals(self,
+        assertGridEqualsList(self,
             product(
                 [{}],
                 dimension('-o2', [1, 2, 3])
             ),
             dimension('-o2', [1, 2, 3]))
 
-        assertGridEquals(self,
+        assertGridEqualsList(self,
             product(
                 dimension('-o1', [1, 2]),
                 dimension('-o2', [1, 2])
@@ -135,6 +136,56 @@ class TestCacheCmd(unittest.TestCase):
                                  '--cb_type': 'mtr'}).to_cache_cmd(),
             '--cb_explore_adf --compressed -b 20')
 
+class TestGrid(unittest.TestCase):
+    def test_grid_construction(self):
+        assertGridEqualsList(self, Grid([]), [])
+        assertGridEqualsList(self,
+            Grid(['--cb_explore_adf']),
+            [{'#0': '--cb_explore_adf'}])
+        assertGridEqualsList(self,
+            Grid([{'#algo': '--cb_explore_adf', '#format': '--dsjson'}]),
+            [{'#algo': '--cb_explore_adf', '#format': '--dsjson'}])
+        assertGridEqualsList(self,
+            Grid([{'#algo': '--cb_explore_adf', '#format': '--dsjson'}, '--cb_explore_adf']),
+            [{'#algo': '--cb_explore_adf', '#format': '--dsjson'}, {'#0': '--cb_explore_adf'}])
+        assertGridEqualsList(self,
+            Grid({'a': [1,2], 'b': [3,4]}), 
+            [{'a':1,'b':3},{'a':1,'b':4},{'a':2,'b':3},{'a':2,'b':4}])
+
+    def test_grid_product(self):
+        assertGridEqualsList(self,
+            Grid([]) * Grid([]),
+            [])
+        assertGridEqualsList(self,
+            Grid(['--cb_explore_adf']) * Grid([]),
+            [])
+        assertGridEqualsList(self,
+            Grid([]) * Grid(['--cb_explore_adf']),
+            [])
+        assertGridEqualsList(self,
+            Grid({'a': [1,2]}) * Grid({'b': [3,4]}),
+            [{'a':1,'b':3},{'a':1,'b':4},{'a':2,'b':3},{'a':2,'b':4}])
+
+    def test_grid_sum(self):
+        assertGridEqualsList(self,
+            Grid([]) + Grid([]),
+            [])
+        assertGridEqualsList(self,
+            Grid(['--cb_explore_adf']) + Grid([]),
+            [{'#0': '--cb_explore_adf'}])
+        assertGridEqualsList(self,
+            Grid([]) + Grid(['--cb_explore_adf']),
+            [{'#0': '--cb_explore_adf'}])
+        self.assertEqual(
+            Grid(['--cb_explore_adf']) + Grid(['--cb_explore_adf']),
+            Grid(['--cb_explore_adf']))
+        self.assertEqual(
+            Grid(['--dsjson --cb_explore_adf']) + Grid([{'#algo': '--cb_explore_adf', '#format': '--dsjson'}]),
+            Grid(['--cb_explore_adf --dsjson']))  
+        self.assertEqual(
+            Grid({'a': [1, 2], 'b': [3,4]}),
+            Grid({'a': [1,2]}) * (Grid({'b': [3]}) + Grid({'b': [4]})))
+           
 
 if __name__ == '__main__':
     unittest.main()
