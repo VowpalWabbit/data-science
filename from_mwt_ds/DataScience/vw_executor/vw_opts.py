@@ -1,3 +1,4 @@
+import hashlib
 import pandas as pd
 
 class VwOpts(dict):
@@ -7,13 +8,19 @@ class VwOpts(dict):
         super().__init__(opts)
 
     def __str__(self) -> str:
-        not_none = {k: v for k,v in self.items() if v is not None}
+        not_none = {k: v for k,v in self.items() if v is not None and not pd.isnull(v)}
         return ' '.join(['{0} {1}'.format(str(key).strip(), str(self[key]).strip()) if not key.startswith('#')
                         else str(self[key]) for key in sorted(not_none.keys())])
 
+    def __eq__(self, other):
+        return self.hash() == other.hash()
+
+    def __hash__(self) -> int:     
+        return int(self.hash(), 16)
+
     def hash(self) -> str:
         items = [i.strip() for i in f' {str(self)}'.split(' -')]
-        return ' '.join(sorted(items)).strip() 
+        return hashlib.md5(' '.join(sorted(items)).strip().encode('utf-8')).hexdigest()   
 
     def to_cache_cmd(self) -> str:
         import argparse
@@ -53,6 +60,19 @@ class VwOpts(dict):
             result = result + f'--cats 1 --bandwidth 1 --min_value 0 --max_value 1 '
 
         return result.strip()
+
+class Grid(list):
+    def __init__(self, grid):
+        if isinstance(grid, dict):
+            super().__init__(product(*[dimension(k, v) for k,v in grid.items()]))
+        else:
+            super().__init__({VwOpts(o) for o in grid})
+
+    def __mul__(self, other):
+        return Grid(product(self, other))
+
+    def __add__(self, other):
+        return Grid(list(self) + list(other))        
        
 
 def _dim_to_list(d):
@@ -70,8 +90,8 @@ def product(*dimensions: list) -> list:
             lambda t: dict(t[0], **t[1]),
             itertools.product(_dim_to_list(d1), _dim_to_list(d2))
         ), dimensions)
-    return list(result)
+    return Grid(result)
 
 
 def dimension(name: str, values: list) -> list:
-    return [{name: v} for v in values]
+    return Grid([{name: v} for v in values])

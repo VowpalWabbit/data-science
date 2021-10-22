@@ -7,7 +7,6 @@ import time
 import pandas as pd
 
 from vw_executor.pool import SeqPool, MultiThreadPool
-from vw_executor import vw_opts
 from vw_executor.loggers import _MultiLoggers
 from vw_executor.handlers import _Handlers
 from vw_executor.vw_cache import VwCache
@@ -20,6 +19,7 @@ def _safe_to_float(num: str, default):
         return float(num)
     except (ValueError, TypeError):
         return default
+
 
 def _to(value: str, types: list):
     for t in types:
@@ -41,6 +41,7 @@ def _parse_loss(loss_str):
     if loss_str.strip()[-1] == 'h':
         loss_str = loss_str.strip()[:-1] 
     return _safe_to_float(loss_str, None)
+
 
 def _extract_metrics(out_lines):
     loss_table = {'i': [], 'loss': [], 'since_last': []}
@@ -124,6 +125,7 @@ class Output:
         if not self._processed:
             self._process()
         return self._metrics
+
 
 class Task:
     def __init__(self, job, logger, input_file, input_folder, model_file, model_folder='', no_run=False):
@@ -270,6 +272,7 @@ class Job:
     @property
     def metrics(self):
         return pd.DataFrame([t.metrics for t in self._tasks])
+
 
 class TestJob(Job):
     def __init__(self, vw_path, cache, files, input_dir, opts, outputs, input_mode, no_run, handler, logger):
