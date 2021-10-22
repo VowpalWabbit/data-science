@@ -130,18 +130,6 @@ class Output:
         return self._metrics
 
 
-def _run_pyvw(args):
-    from vowpalwabbit import pyvw
-    result = pyvw.vw(args, enable_logging=True)
-    return result.get_log()
-
-
-def _fork(func, *args):
-    from multiprocess import Pool
-    with Pool(1) as p:
-        return p.apply(func, args)
-
-
 class Task:
     def __init__(self, job, logger, input_file, input_folder, model_file, model_folder='', no_run=False):
         self._job = job
@@ -181,19 +169,7 @@ class Task:
 
     def _execute(self):
         self._logger.debug(f'Executing: {self.args}')
-        if self._job._vw_path is not None:
-            command = f'{self._job._vw_path} {self.args}'
-            process = subprocess.Popen(
-                command.split(),
-                universal_newlines=True,
-                encoding='utf-8',
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE
-            )
-            error = process.communicate()[1]
-            return error
-        else:
-            return _fork(_run_pyvw, self.args)
+        return self._job._vw.run(self.args)
 
     def _run(self, reset):
         result_files = list(self.outputs.values()) + [self.stdout_path]
@@ -234,8 +210,8 @@ class Task:
 
 
 class Job:
-    def __init__(self, vw_path, cache, opts, outputs, input_mode, handler, logger):
-        self._vw_path = vw_path
+    def __init__(self, vw, cache, opts, outputs, input_mode, handler, logger):
+        self._vw = vw
         self._cache = cache
         self.opts = opts
         self.name = str(VwOpts({k: opts[k] for k in VwOpts(opts).keys() - {'#base'}}))
@@ -293,17 +269,17 @@ class Job:
 
 
 class TestJob(Job):
-    def __init__(self, vw_path, cache, files, input_dir, opts, outputs, input_mode, no_run, handler, logger):
-        super().__init__(vw_path, cache, opts, outputs, input_mode, handler, logger)
+    def __init__(self, vw, cache, files, input_dir, opts, outputs, input_mode, no_run, handler, logger):
+        super().__init__(vw, cache, opts, outputs, input_mode, handler, logger)
         for f in files:
             self._tasks.append(Task(self, self._logger, f, input_dir, None, cache.path, no_run))
 
 
 class TrainJob(Job):
-    def __init__(self, vw_path, cache, files, input_dir, opts, outputs, input_mode, no_run, handler, logger):
+    def __init__(self, vw, cache, files, input_dir, opts, outputs, input_mode, no_run, handler, logger):
         if '-f' not in outputs:
             outputs.append('-f')
-        super().__init__(vw_path, cache, opts, outputs, input_mode, handler, logger)
+        super().__init__(vw, cache, opts, outputs, input_mode, handler, logger)
         for i, f in enumerate(files):
             model = None if i == 0 else self._tasks[i - 1].outputs_relative['-f']
             self._tasks.append(Task(self, self._logger, f, input_dir, model, cache.path, no_run))
@@ -314,6 +290,35 @@ def _assert_path_is_supported(path):
         raise ValueError(f'Paths that are containing " -" as substring are not supported: {path}')
     return path
 
+class _VwBin:
+    def __init__(self, path):
+        self.path = path
+
+    def run(self, args):
+        command = f'{self.path} {args}'
+        process = subprocess.Popen(
+            command.split(),
+            universal_newlines=True,
+            encoding='utf-8',
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE
+        )
+        error = process.communicate()[1]
+        return error
+
+def _run_pyvw(args):
+    from vowpalwabbit import pyvw
+    result = pyvw.vw(args, enable_logging=True)
+    return result.get_log()
+
+class _VwPy:
+    def __init__(self):
+        self.path=None
+
+    def run(self, args):
+        from multiprocess import Pool
+        with Pool(1) as p:
+            return p.apply(_run_pyvw, [args])
 
 class Vw:
     def __init__(self, cache_path,
@@ -323,8 +328,8 @@ class Vw:
         reset=False,
         handlers=[ProgressBars()],
         loggers=None):
-        self.path = path
         self._cache = VwCache(_assert_path_is_supported(cache_path))
+        self._vw = _VwBin(path) if path is not None else _VwPy()
         self.logger = _MultiLoggers(loggers or [])
         self.pool = SeqPool() if procs == 1 else MultiThreadPool(procs)
         self.no_run = no_run
@@ -332,13 +337,16 @@ class Vw:
         self.reset = reset
 
     def _with(self, path=None, cache_path=None, procs=None, no_run=None, reset=None, handlers=None, loggers=None):
-        return Vw(path or self.path, cache_path or self._cache.path, procs or self.pool.procs,
+        return Vw(cache_path or self._cache.path, 
+                  path or self._vw.path,
+                  procs or self.pool.procs,
                   no_run if no_run is not None else self.no_run,
-                  reset if reset is not None else self.reset, handlers if handlers is not None else self.handler.handlers,
+                  reset if reset is not None else self.reset,
+                  handlers if handlers is not None else self.handler.handlers,
                   loggers if loggers is not None else self.logger.loggers)
 
     def _run_impl(self, inputs, opts, outputs, input_mode, input_dir, job_type):
-        job = job_type(self.path, self._cache, inputs, input_dir, VwOpts(opts), outputs, input_mode, self.no_run,
+        job = job_type(self._vw, self._cache, inputs, input_dir, VwOpts(opts), outputs, input_mode, self.no_run,
                        self.handler, self.logger)
         return job._run(self.reset)
 
