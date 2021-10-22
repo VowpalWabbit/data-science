@@ -2,8 +2,8 @@
 import setuptools
 
 MAJOR               = 0
-MINOR               = 0
-MICRO               = 4
+MINOR               = 1
+MICRO               = 0
 VERSION             = f"{MAJOR}.{MINOR}.{MICRO}"
 
 with open("README.md", "r") as f:
@@ -27,7 +27,7 @@ setuptools.setup(
         "Operating System :: OS Independent",
         "Topic :: Scientific/Engineering"
     ],
-    install_requires = ['pandas>=1.0.0', 'tqdm>=4.0.0'],
+    install_requires = ['pandas>=1.0.0', 'tqdm>=4.0.0', 'vowpalwabbit >= 8.10.0', 'multiprocess >= 0.70.0.0'],
     python_requires=">=3.6",
     tests_require=['unittest']
 )
