@@ -316,7 +316,8 @@ def _assert_path_is_supported(path):
 
 
 class Vw:
-    def __init__(self, path, cache_path,
+    def __init__(self, cache_path,
+        path = None,
         procs=max(1, multiprocessing.cpu_count() // 2),
         no_run=False,
         reset=False,
