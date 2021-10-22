@@ -80,7 +80,10 @@ def _extract_metrics(out_lines):
 
 def _save(txt, path):
     with open(path, 'w') as f:
-        f.write(txt)
+        if isinstance(txt, str):
+            f.write(txt)
+        else:
+            f.writelines(txt)
 
 
 class ExecutionStatus(enum.Enum):
@@ -165,17 +168,22 @@ class Task:
         return str(opts)
 
     def _execute(self):
-        command = f'{self._job._vw_path} {self.args}'
-        self._logger.debug(f'Executing: {command}')
-        process = subprocess.Popen(
-            command.split(),
-            universal_newlines=True,
-            encoding='utf-8',
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE
-        )
-        error = process.communicate()[1]
-        return error
+        self._logger.debug(f'Executing: {self.args}')
+        if self._job._vw_path is not None:
+            command = f'{self._job._vw_path} {self.args}'
+            process = subprocess.Popen(
+                command.split(),
+                universal_newlines=True,
+                encoding='utf-8',
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE
+            )
+            error = process.communicate()[1]
+            return error
+        else:
+            from vowpalwabbit import pyvw
+            result = pyvw.vw(self.args, enable_logging=True)
+            return result.get_log()
 
     def _run(self, reset):
         result_files = list(self.outputs.values()) + [self.stdout_path]
@@ -304,7 +312,7 @@ class Vw:
         reset=False,
         handlers=[ProgressBars()],
         loggers=None):
-        self.path = _assert_path_is_supported(path)
+        self.path = path
         self._cache = VwCache(_assert_path_is_supported(cache_path))
         self.logger = _MultiLoggers(loggers or [])
         self.pool = SeqPool() if procs == 1 else MultiThreadPool(procs)
