@@ -281,7 +281,7 @@ class Job:
                       for i, t in enumerate(self._tasks)]).reset_index().set_index(['file', 'i'])
 
     def to_dict(self):
-        return dict(self.opts, **{'!Loss': self.loss, '!Job': self})
+        return dict(self.opts, **{'!Loss': self.loss, '!Status': self.status.name, '!Job': self})
 
     @property
     def runtime_s(self):
