@@ -130,6 +130,18 @@ class Output:
         return self._metrics
 
 
+def _run_pyvw(args):
+    from vowpalwabbit import pyvw
+    result = pyvw.vw(args, enable_logging=True)
+    return result.get_log()
+
+
+def _fork(func, *args):
+    from multiprocess import Pool
+    with Pool(1) as p:
+        return p.apply(func, args)
+
+
 class Task:
     def __init__(self, job, logger, input_file, input_folder, model_file, model_folder='', no_run=False):
         self._job = job
@@ -181,9 +193,7 @@ class Task:
             error = process.communicate()[1]
             return error
         else:
-            from vowpalwabbit import pyvw
-            result = pyvw.vw(self.args, enable_logging=True)
-            return result.get_log()
+            return _fork(_run_pyvw, self.args)
 
     def _run(self, reset):
         result_files = list(self.outputs.values()) + [self.stdout_path]
