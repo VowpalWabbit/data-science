@@ -72,7 +72,23 @@ class Grid(list):
         return Grid(product(self, other))
 
     def __add__(self, other):
-        return Grid(list(self) + list(other))        
+        return Grid(list(self) + list(other))     
+
+def _create_control(v):
+    from ipywidgets import fixed, IntSlider, FloatSlider
+    if len(v) == 1: return fixed(v[0])
+    if isinstance(v, range): return IntSlider(min=v.start, max=v.stop)
+    return v
+
+class InteractiveGrid(dict):
+    def __init__(self, grid):
+        if isinstance(grid, list):
+            raise Exception('not supported')
+        super().__init__({k: _create_control(v) for k,v in grid.items()})
+
+    def __mul__(self, other):
+        for k, v in other.items():
+            self[k] = _create_control(v)  
        
 
 def _dim_to_list(d):
