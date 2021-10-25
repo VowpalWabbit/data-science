@@ -102,7 +102,7 @@ class MultiFileLogger(_LoggerCore):
         super().__init__(impl, logging.getLevelName(self.level_str), None)
 
     def __getitem__(self, key):
-        return MultiFileLogger(folder=self.folder, level=self.LevelStr, tag=key)
+        return MultiFileLogger(folder=self.folder, level=self.level_str, tag=key)
     
     def trace(self, message: str):
         self.impl.trace(message)

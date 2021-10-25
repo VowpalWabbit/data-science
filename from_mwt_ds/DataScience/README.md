@@ -5,7 +5,10 @@ Python helper for running multiple vowpalwabbit on multiple command line argumen
 ## Initialize the wrapper
 ```
 from vw_executor.vw import Vw
-vw = Vw('path to vw binary', 'path to cache folder')
+vw = Vw(
+    'path to cache folder',
+    'path to vw binary'         # Optional. If empty, pyvw is used
+    )
 ```
 
 ## Run on single configuration
