@@ -375,7 +375,7 @@ class Vw:
         return self._run(inputs, opts, outputs or [], input_mode, input_dir, TestJob)
 
     def _interact(self, inputs, opts, outputs, input_mode, input_dir, job_type):
-        from ipywidgets import interactive, fixed, HBox, Layout, GridBox
+        from ipywidgets import interactive, fixed, VBox, Layout, GridBox
         from IPython.display import display
         import matplotlib.pyplot as plt
         def _run_and_plot(inputs, outputs, input_mode, input_dir, job_type, fig, ax, **opts):
@@ -399,4 +399,4 @@ class Vw:
         layout = Layout(grid_template_rows=' '.join(['auto'] * rows), grid_template_columns=' '.join(['auto'] * columns))
         control_elements = GridBox(children=widget.children[:-1], layout=layout)
         plot = widget.children[-1]
-        display(HBox([control_elements, plot]))
+        display(VBox([control_elements, plot]))
