@@ -381,7 +381,7 @@ class Vw:
         def _run_and_plot(inputs, outputs, input_mode, input_dir, job_type, fig, ax, **opts):
             self.last_job = self._with(handlers=[])._run(inputs, locals()['opts'], outputs, input_mode, input_dir, job_type)
             ax.clear()
-            fig.suptitle('Progressive loss')
+            fig.suptitle('Loss')
             self.last_job.loss_table['loss'].plot(ax=ax)
             fig.canvas.draw()
         fig, ax = plt.subplots(dpi=100, figsize=[9,4])
