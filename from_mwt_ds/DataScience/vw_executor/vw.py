@@ -378,22 +378,14 @@ class Vw:
         from ipywidgets import interactive, fixed, VBox, Layout, GridBox
         from IPython.display import display
         import matplotlib.pyplot as plt
-        def _run_and_plot(inputs, outputs, input_mode, input_dir, job_type, fig, ax, **opts):
+        def _run_and_plot(**opts):
             self.last_job = self._with(handlers=[])._run(inputs, locals()['opts'], outputs, input_mode, input_dir, job_type)
             ax.clear()
             fig.suptitle('Loss')
             self.last_job.loss_table['loss'].plot(ax=ax)
             fig.canvas.draw()
         fig, ax = plt.subplots(dpi=100, figsize=[9,4])
-        widget = interactive(_run_and_plot, 
-            inputs=fixed(inputs),
-            outputs=fixed(outputs),
-            input_mode=fixed(input_mode),
-            input_dir=fixed(input_dir),
-            job_type=fixed(job_type),
-            fig=fixed(fig),
-            ax=fixed(ax),
-            **opts)
+        widget = interactive(_run_and_plot, **opts)
         columns = 4
         rows = (len(widget.children) - 1) // columns + 1
         layout = Layout(grid_template_rows=' '.join(['auto'] * rows), grid_template_columns=' '.join(['auto'] * columns))
