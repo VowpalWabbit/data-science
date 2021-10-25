@@ -397,4 +397,6 @@ class Vw:
         columns = 4
         rows = (len(widget.children) - 1) // columns + 1
         layout = Layout(grid_template_rows=' '.join(['auto'] * rows), grid_template_columns=' '.join(['auto'] * columns))
-        display(HBox([GridBox(children=widget.children[:-1], layout=layout), widget.children[-1]]))
+        control_elements = GridBox(children=widget.children[:-1], layout=layout)
+        plot = widget.children[-1]
+        display(HBox([control_elements, plot]))
