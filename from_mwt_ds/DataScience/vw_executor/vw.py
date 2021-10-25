@@ -11,7 +11,7 @@ from vw_executor.loggers import _MultiLoggers
 from vw_executor.handlers import _Handlers
 from vw_executor.vw_cache import VwCache
 from vw_executor.handlers import ProgressBars
-from vw_executor.vw_opts import VwOpts
+from vw_executor.vw_opts import VwOpts, InteractiveGrid
 
 
 def _safe_to_float(num: str, default):
@@ -311,6 +311,7 @@ class Vw:
         self.no_run = no_run
         self.handler = _Handlers(handlers or [])
         self.reset = reset
+        self.last_job = None
 
     def _with(self, path=None, cache_path=None, procs=None, no_run=None, reset=None, handlers=None, loggers=None):
         return Vw(path or self.path, cache_path or self._cache.path, procs or self.pool.procs,
@@ -362,8 +363,32 @@ class Vw:
             cache_opts = VwOpts(opts).to_cache_cmd()
         return self._run(inputs, cache_opts, ['--cache_file'], '-d', input_dir, TestJob)
 
+
     def train(self, inputs, opts, outputs=None, input_mode='-d', input_dir=''):
+        if isinstance(opts, InteractiveGrid):
+            return self._interact(inputs, opts, outputs or [], input_mode, input_dir, TrainJob)
         return self._run(inputs, opts, outputs or [], input_mode, input_dir, TrainJob)
 
     def test(self, inputs, opts, outputs=None, input_mode='-d', input_dir=''):
+        if isinstance(opts, InteractiveGrid):
+            return self._interact(inputs, opts, outputs or [], input_mode, input_dir, TestJob)
         return self._run(inputs, opts, outputs or [], input_mode, input_dir, TestJob)
+
+    def _interact(self, inputs, opts, outputs, input_mode, input_dir, job_type):
+        from ipywidgets import interactive, fixed, VBox, Layout, GridBox
+        from IPython.display import display
+        import matplotlib.pyplot as plt
+        def _run_and_plot(**opts):
+            self.last_job = self._with(handlers=[])._run(inputs, locals()['opts'], outputs, input_mode, input_dir, job_type)
+            ax.clear()
+            fig.suptitle('Loss')
+            self.last_job.loss_table['loss'].plot(ax=ax)
+            fig.canvas.draw()
+        fig, ax = plt.subplots(dpi=100, figsize=[9,4])
+        widget = interactive(_run_and_plot, **opts)
+        columns = 4
+        rows = (len(widget.children) - 1) // columns + 1
+        layout = Layout(grid_template_rows=' '.join(['auto'] * rows), grid_template_columns=' '.join(['auto'] * columns))
+        control_elements = GridBox(children=widget.children[:-1], layout=layout)
+        plot = widget.children[-1]
+        display(VBox([control_elements, plot]))

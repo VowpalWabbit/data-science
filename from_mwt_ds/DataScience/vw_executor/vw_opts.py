@@ -72,7 +72,19 @@ class Grid(list):
         return Grid(product(self, other))
 
     def __add__(self, other):
-        return Grid(list(self) + list(other))        
+        return Grid(list(self) + list(other))     
+
+class InteractiveGrid(dict):
+    def __init__(self, grid):
+        if isinstance(grid, list):
+            raise Exception('not supported')
+        super().__init__(grid)
+
+    def __mul__(self, other):
+        return dict(self, **other)
+
+    def __add__(self, other):
+        raise Exception('not supported')  
        
 
 def _dim_to_list(d):
