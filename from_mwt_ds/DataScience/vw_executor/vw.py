@@ -374,15 +374,17 @@ class Vw:
         return self._run(inputs, opts, outputs or [], input_mode, input_dir, TestJob)
 
     def _interact(self, inputs, opts, outputs, input_mode, input_dir, job_type):
-        from ipywidgets import interact, fixed
+        from ipywidgets import interactive, fixed, VBox, HBox
+        from IPython.display import display
         import matplotlib.pyplot as plt
         def _run_and_plot(vw, inputs, outputs, input_mode, input_dir, job_type, fig, ax, **opts):
             result = vw._run(inputs, locals()['opts'], outputs, input_mode, input_dir, job_type)
             ax.clear()
+            fig.suptitle('Progressive loss')
             result.loss_table['loss'].plot(ax=ax)
             fig.canvas.draw()
         fig, ax = plt.subplots(dpi=100, figsize=[9,4])
-        return interact(_run_and_plot, 
+        widget = interactive(_run_and_plot, 
             vw=fixed(self._with(handlers=[])),
             inputs=fixed(inputs),
             outputs=fixed(outputs),
@@ -392,3 +394,4 @@ class Vw:
             fig=fixed(fig),
             ax=fixed(ax),
             **opts)
+        display(VBox([HBox(widget.children[:-1]),widget.children[-1]]))
