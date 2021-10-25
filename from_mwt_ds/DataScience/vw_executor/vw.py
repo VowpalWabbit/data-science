@@ -378,15 +378,14 @@ class Vw:
         from ipywidgets import interactive, fixed, HBox, Layout, GridBox
         from IPython.display import display
         import matplotlib.pyplot as plt
-        def _run_and_plot(vw, inputs, outputs, input_mode, input_dir, job_type, fig, ax, **opts):
-            self.last_job = vw._run(inputs, locals()['opts'], outputs, input_mode, input_dir, job_type)
+        def _run_and_plot(inputs, outputs, input_mode, input_dir, job_type, fig, ax, **opts):
+            self.last_job = self._with(handlers=[])._run(inputs, locals()['opts'], outputs, input_mode, input_dir, job_type)
             ax.clear()
             fig.suptitle('Progressive loss')
             self.last_job.loss_table['loss'].plot(ax=ax)
             fig.canvas.draw()
         fig, ax = plt.subplots(dpi=100, figsize=[9,4])
         widget = interactive(_run_and_plot, 
-            vw=fixed(self._with(handlers=[])),
             inputs=fixed(inputs),
             outputs=fixed(outputs),
             input_mode=fixed(input_mode),
