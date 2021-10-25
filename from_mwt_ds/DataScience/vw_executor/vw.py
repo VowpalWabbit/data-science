@@ -311,6 +311,7 @@ class Vw:
         self.no_run = no_run
         self.handler = _Handlers(handlers or [])
         self.reset = reset
+        self.last_job = None
 
     def _with(self, path=None, cache_path=None, procs=None, no_run=None, reset=None, handlers=None, loggers=None):
         return Vw(path or self.path, cache_path or self._cache.path, procs or self.pool.procs,
@@ -378,10 +379,10 @@ class Vw:
         from IPython.display import display
         import matplotlib.pyplot as plt
         def _run_and_plot(vw, inputs, outputs, input_mode, input_dir, job_type, fig, ax, **opts):
-            result = vw._run(inputs, locals()['opts'], outputs, input_mode, input_dir, job_type)
+            self.last_job = vw._run(inputs, locals()['opts'], outputs, input_mode, input_dir, job_type)
             ax.clear()
             fig.suptitle('Progressive loss')
-            result.loss_table['loss'].plot(ax=ax)
+            self.last_job.loss_table['loss'].plot(ax=ax)
             fig.canvas.draw()
         fig, ax = plt.subplots(dpi=100, figsize=[9,4])
         widget = interactive(_run_and_plot, 
