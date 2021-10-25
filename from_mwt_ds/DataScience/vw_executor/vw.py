@@ -365,12 +365,12 @@ class Vw:
 
     def train(self, inputs, opts, outputs=None, input_mode='-d', input_dir=''):
         if isinstance(opts, InteractiveGrid):
-            return self._interact(inputs, opts, outputs, input_mode, input_dir, TrainJob)
+            return self._interact(inputs, opts, outputs or [], input_mode, input_dir, TrainJob)
         return self._run(inputs, opts, outputs or [], input_mode, input_dir, TrainJob)
 
     def test(self, inputs, opts, outputs=None, input_mode='-d', input_dir=''):
         if isinstance(opts, InteractiveGrid):
-            return self._interact(inputs, opts, outputs, input_mode, input_dir, TestJob)
+            return self._interact(inputs, opts, outputs or [], input_mode, input_dir, TestJob)
         return self._run(inputs, opts, outputs or [], input_mode, input_dir, TestJob)
 
     def _interact(self, inputs, opts, outputs, input_mode, input_dir, job_type):
