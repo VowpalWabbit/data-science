@@ -1,5 +1,5 @@
 # What is this?
-Python helper for running multiple vowpalwabbit on multiple command line arguments and have programmatic access to results.
+Python helper for running vowpalwabbit on multiple command line arguments and have programmatic access to results.
 
 # Getting started
 ## Initialize the wrapper
@@ -27,9 +27,9 @@ Every configuration can be defined using one of the following ways:
 ```
 result = vw.train(['input1.txt'], '--cb_explore_adf --dsjson')
 ```
-2. dictionary. In this case, for every key value pair:
+2. dictionary. In this case, for every key/value pair:
 
-- If value is None/NaN the whole pair is skippec
+- If value is None/NaN the whole pair is skipped
 - If key starts with '#', key is skipped
 - Otherwise f'{key} {value}' is added to command line
 
@@ -39,7 +39,7 @@ vw.train(['input1.txt'], {'#base': '--cb_explore_adf --dsjson', '--epsilon': 0.2
 ```
 is running vw binary with the following command line:
 ```
---cb_explore_adf --dsjsojn --epsilon 0.2
+--cb_explore_adf --dsjson --epsilon 0.2
 ```
 
 ## Run on multiple configurations
