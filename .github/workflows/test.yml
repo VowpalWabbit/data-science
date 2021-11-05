@@ -1,4 +1,4 @@
-# This workflow will install Python dependencies, run tests and lint with a variety of Python versions
+# This workflow will install Python dependencies and run tests
 # For more information see: https://help.github.com/actions/language-and-framework-guides/using-python-with-github-actions
 
 name: Python test
@@ -31,5 +31,4 @@ jobs:
     - name: Test with unittest
       run: |
         cd from_mwt_ds/DataScience
-        pip install unittest
         unittest
