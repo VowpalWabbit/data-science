@@ -31,4 +31,4 @@ jobs:
     - name: Test with unittest
       run: |
         cd from_mwt_ds/DataScience
-        unittest
+        python -m unittest
