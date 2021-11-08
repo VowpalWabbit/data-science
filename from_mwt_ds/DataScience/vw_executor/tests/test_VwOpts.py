@@ -27,6 +27,7 @@ class TestStringHash(unittest.TestCase):
             VwOpts('--ccb_explore_adf --epsilon 0.1 --dsjson --l 0.2').hash(),
             VwOpts('--dsjson  --ccb_explore_adf --l 0.2 --epsilon 0.1  ').hash())
 
+
     def test_not_equal_after_normalize(self):
         self.assertNotEqual(
             VwOpts('--ccb_explore_adf --epsilon 0.1 --dsjson').hash(),
