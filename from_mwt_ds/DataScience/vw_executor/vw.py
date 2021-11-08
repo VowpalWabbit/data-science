@@ -109,7 +109,8 @@ class Output:
 
     @property
     def raw(self):
-        return open(self.path, 'r').readlines()
+        with open(self.path, 'r') as f:
+            return f.readlines()
     
     @property
     def loss(self):
