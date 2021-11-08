@@ -247,6 +247,9 @@ class Job:
     def __getitem__(self, i):
         return self._tasks[i]
 
+    def __len__(self):
+        return len(self._tasks)
+
     @property
     def loss(self):
         return self[-1].loss
