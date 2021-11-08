@@ -23,6 +23,8 @@ class TestVw(unittest.TestCase):
             '--cb_explore_adf --epsilon 0.2'])
         self.assertEqual(isinstance(result, list), True)
         self.assertEqual(len(result), 2)
+        self.assertEqual(isinstance(result[0], Job), True)       
+        self.assertEqual(isinstance(result[1], Job), True) 
         self.assertEqual(len(result[0]), 1)
         self.assertEqual(len(result[1]), 1)
 
@@ -31,6 +33,8 @@ class TestVw(unittest.TestCase):
             {'#base': '--cb_explore_adf --dsjson', '--epsilon':  0.2}])
         self.assertEqual(isinstance(result, list), True)
         self.assertEqual(len(result), 2)
+        self.assertEqual(isinstance(result[0], Job), True)       
+        self.assertEqual(isinstance(result[1], Job), True) 
         self.assertEqual(len(result[0]), 1)
         self.assertEqual(len(result[1]), 1)
 
@@ -39,6 +43,8 @@ class TestVw(unittest.TestCase):
             {'#base': '--cb_explore_adf --dsjson', '--epsilon':  0.2}])
         self.assertEqual(isinstance(result, list), True)
         self.assertEqual(len(result), 2)
+        self.assertEqual(isinstance(result[0], Job), True)       
+        self.assertEqual(isinstance(result[1], Job), True) 
         self.assertEqual(len(result[0]), 1)
         self.assertEqual(len(result[1]), 1)
 
@@ -48,6 +54,8 @@ class TestVw(unittest.TestCase):
         }))
         self.assertEqual(isinstance(result, list), True)
         self.assertEqual(len(result), 2)
+        self.assertEqual(isinstance(result[0], Job), True)       
+        self.assertEqual(isinstance(result[1], Job), True) 
         self.assertEqual(len(result[0]), 1)
         self.assertEqual(len(result[1]), 1)
 
@@ -64,6 +72,8 @@ class TestVw(unittest.TestCase):
             '--cb_explore_adf --epsilon 0.2'])
         self.assertEqual(isinstance(result, list), True)
         self.assertEqual(len(result), 2)
+        self.assertEqual(isinstance(result[0], Job), True)       
+        self.assertEqual(isinstance(result[1], Job), True) 
         self.assertEqual(len(result[0]), 2)
         self.assertEqual(len(result[1]), 2)
 
@@ -72,6 +82,8 @@ class TestVw(unittest.TestCase):
             {'#base': '--cb_explore_adf --dsjson', '--epsilon':  0.2}])
         self.assertEqual(isinstance(result, list), True)
         self.assertEqual(len(result), 2)
+        self.assertEqual(isinstance(result[0], Job), True)       
+        self.assertEqual(isinstance(result[1], Job), True) 
         self.assertEqual(len(result[0]), 2)
         self.assertEqual(len(result[1]), 2)
 
@@ -80,6 +92,8 @@ class TestVw(unittest.TestCase):
             {'#base': '--cb_explore_adf --dsjson', '--epsilon':  0.2}])
         self.assertEqual(isinstance(result, list), True)
         self.assertEqual(len(result), 2)
+        self.assertEqual(isinstance(result[0], Job), True)       
+        self.assertEqual(isinstance(result[1], Job), True) 
         self.assertEqual(len(result[0]), 2)
         self.assertEqual(len(result[1]), 2)
 
@@ -89,6 +103,8 @@ class TestVw(unittest.TestCase):
         }))
         self.assertEqual(isinstance(result, list), True)
         self.assertEqual(len(result), 2)
+        self.assertEqual(isinstance(result[0], Job), True)       
+        self.assertEqual(isinstance(result[1], Job), True) 
         self.assertEqual(len(result[0]), 2)
         self.assertEqual(len(result[1]), 2)
 
