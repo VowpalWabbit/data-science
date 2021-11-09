@@ -290,7 +290,7 @@ class TrainJob(Job):
 
 
 def _assert_path_is_supported(path):
-    if ' -' in path:
+    if ' -' in str(path):
         raise ValueError(f'Paths that are containing " -" as substring are not supported: {path}')
     return path
 
@@ -359,11 +359,12 @@ class Vw:
         if not isinstance(inputs, list):
             inputs = [inputs]
         inputs = [_assert_path_is_supported(i) for i in inputs]
-        self.handler.on_start(inputs, opts)
         if isinstance(opts, list):
+            self.handler.on_start(inputs, opts)
             args = [(inputs, point, outputs, input_mode, input_dir, job_type) for point in opts]
             result = self.pool.map(self._run_impl, args)
         else:
+            self.handler.on_start(inputs, [opts])
             result = self._run_impl(inputs, opts, outputs, input_mode, input_dir, job_type)
         self.handler.on_finish(result)
         return result
