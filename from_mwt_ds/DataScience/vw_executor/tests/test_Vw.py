@@ -53,7 +53,7 @@ class TestVw(unittest.TestCase):
 
         result = vw.train(self.input1, [
             '--cb_explore_adf --dsjson --epsilon 0.1',
-            '--cb_explore_adf --epsilon 0.2'])
+            '--cb_explore_adf --dsjson --epsilon 0.2'])
         self.assertTrue(isinstance(result, list))
         self.assertEqual(len(result), 2)
         self.assertTrue(isinstance(result[0], Job))       
@@ -68,7 +68,7 @@ class TestVw(unittest.TestCase):
 
         result = vw.test(self.input1, [
             '--cb_explore_adf --dsjson --epsilon 0.1',
-            '--cb_explore_adf --epsilon 0.2'])
+            '--cb_explore_adf --dsjson --epsilon 0.2'])
         self.assertTrue(isinstance(result, list))
         self.assertEqual(len(result), 2)
         self.assertTrue(isinstance(result[0], Job))       
@@ -207,7 +207,7 @@ class TestVw(unittest.TestCase):
 
         result = vw.train([self.input1, self.input2], [
             '--cb_explore_adf --dsjson --epsilon 0.1',
-            '--cb_explore_adf --epsilon 0.2'])
+            '--cb_explore_adf --dsjson --epsilon 0.2'])
         self.assertTrue(isinstance(result, list))
         self.assertEqual(len(result), 2)
         self.assertTrue(isinstance(result[0], Job))       
@@ -222,7 +222,7 @@ class TestVw(unittest.TestCase):
 
         result = vw.test([self.input1, self.input2], [
             '--cb_explore_adf --dsjson --epsilon 0.1',
-            '--cb_explore_adf --epsilon 0.2'])
+            '--cb_explore_adf --dsjson --epsilon 0.2'])
         self.assertTrue(isinstance(result, list))
         self.assertEqual(len(result), 2)
         self.assertTrue(isinstance(result[0], Job))       
