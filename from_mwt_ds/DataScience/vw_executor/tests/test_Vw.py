@@ -544,8 +544,6 @@ class TestVw(unittest.TestCase):
         stdout_cache = cache.joinpath('cacheNone')
 
         result = vw.test(self.input1, '--cb_explore_adf --dsjson')
-        for l in result[0].stdout.raw:
-            print(l)
         self.assertEqual(len(list(cache.iterdir())), 1)        
         self.assertEqual(len(list(stdout_cache.iterdir())), 1)
         self.assertIsNotNone(result.loss)
@@ -561,6 +559,10 @@ class TestVw(unittest.TestCase):
         self.assertIsNotNone(result.loss)
 
         result = vw.test([self.input1, self.input2, self.input1], ['--cb_explore_adf --dsjson', '--cb_explore_adf --dsjson --epsilon 0.5'])
+        for l in result[0].stdout.raw:
+            print(l)
+        for l in result[1].stdout.raw:
+            print(l)
         self.assertEqual(len(list(cache.iterdir())), 1)        
         self.assertEqual(len(list(stdout_cache.iterdir())), 4)
         self.assertIsNotNone(result[0].loss)
