@@ -357,6 +357,8 @@ class TestVw(unittest.TestCase):
         stdout_cache = cache.joinpath('cacheNone')
 
         result = vw.test(self.input1, '--cb_explore_adf --dsjson')
+        for l in result[0].stdout.raw:
+            print(l)
         self.assertEqual(len(list(cache.iterdir())), 1)        
         self.assertEqual(len(list(stdout_cache.iterdir())), 1)
         self.assertIsNotNone(result.loss)
