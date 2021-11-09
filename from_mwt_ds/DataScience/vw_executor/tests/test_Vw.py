@@ -563,7 +563,8 @@ class TestVw(unittest.TestCase):
         result = vw.test([self.input1, self.input2, self.input1], ['--cb_explore_adf --dsjson', '--cb_explore_adf --dsjson --epsilon 0.5'])
         self.assertEqual(len(list(cache.iterdir())), 1)        
         self.assertEqual(len(list(stdout_cache.iterdir())), 4)
-        self.assertIsNotNone(result.loss)
+        self.assertIsNotNone(result[0].loss)
+        self.assertIsNotNone(result[1].loss)
 
     def test_e2e_train(self):
         cache = Path('.vw_cache_train')
@@ -595,7 +596,8 @@ class TestVw(unittest.TestCase):
         self.assertEqual(len(list(cache.iterdir())), 2)        
         self.assertEqual(len(list(stdout_cache.iterdir())), 6)
         self.assertEqual(len(list(model_cache.iterdir())), 6)
-        self.assertIsNotNone(result.loss)
+        self.assertIsNotNone(result[0].loss)
+        self.assertIsNotNone(result[1].loss)
 
     def test_failing_task(self):
         vw = Vw('.vw_cache', handlers = [])
