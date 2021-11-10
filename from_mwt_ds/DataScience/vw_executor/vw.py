@@ -312,19 +312,20 @@ class _VwBin:
         return error
 
 
+def _run_pyvw(args):
+    from vowpalwabbit import pyvw
+    with pyvw.vw(args, enable_logging=True) as execution:
+        return execution.get_log()
+
+
 class _VwPy:
     def __init__(self):
         self.path = None
 
     def run(self, args):
-        def _run(args):
-            from vowpalwabbit import pyvw
-            with pyvw.vw(args, enable_logging=True) as execution:
-                return execution.get_log()
-            
         from multiprocessing import Pool
         with Pool(1) as p:
-            return p.apply(_run, [args])
+            return p.apply(_run_pyvw, [args])
 
 
 class Vw:
