@@ -312,8 +312,8 @@ class _VwBin:
 
 def _run_pyvw(args):
     from vowpalwabbit import pyvw
-    result = pyvw.vw(args, enable_logging=True)
-    return result.get_log()
+    with pyvw.vw(args, enable_logging=True) as execution:
+        return execution.get_log()
 
 class _VwPy:
     def __init__(self):
