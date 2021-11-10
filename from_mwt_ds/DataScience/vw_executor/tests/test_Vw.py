@@ -18,8 +18,10 @@ class TestVw(unittest.TestCase):
 
     def setUp(self):
         import multiprocessing
+        print('here:')
+        print(multiprocessing.get_start_method())
         multiprocessing.set_start_method('spawn')
-
+        print(multiprocessing.get_start_method())
 
     def test_1file_1str_opt_train(self):
         vw = Vw('.vw_cache', handlers = [])
