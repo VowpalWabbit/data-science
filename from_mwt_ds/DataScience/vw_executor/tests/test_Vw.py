@@ -16,6 +16,10 @@ class TestVw(unittest.TestCase):
     input2 = 'vw_executor/tests/data/cb_1.json'
     input_ccb = 'vw_executor/tests/data/ccb_0.json'
 
+    def setUp(self):
+        import multiprocessing
+        multiprocessing.set_start_method('spawn')
+
 
     def test_1file_1str_opt_train(self):
         vw = Vw('.vw_cache', handlers = [])
