@@ -11,7 +11,7 @@ class ProgressBars:
         self.verbose = verbose
 
     def on_start(self, inputs, opts):
-        from tqdm import tqdm_notebook as tqdm
+        from tqdm.notebook import tqdm
         self.jobs = {}
         self.tasks = len(inputs)
         self.total = tqdm(range(len(opts)), desc='Total', leave=self.leave)
@@ -20,7 +20,7 @@ class ProgressBars:
         self.total.close()
 
     def on_job_start(self, job):
-        from tqdm import tqdm_notebook as tqdm
+        from tqdm.notebook import tqdm
         if self.verbose:
             self.jobs[job.name] = tqdm(range(self.tasks), desc=job.name, leave=self.leave)
 
