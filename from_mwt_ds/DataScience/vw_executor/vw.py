@@ -62,7 +62,7 @@ def _extract_metrics(out_lines):
                         loss_table['i'].append(count)
                         loss_table['loss'].append(average_loss_f)
                         loss_table['since_last'].append(since_last_f)
-                    except:
+                    except (ValueError, TypeError):
                         ...  # todo: handle
             elif line.startswith('loss'):
                 fields = line.split()
