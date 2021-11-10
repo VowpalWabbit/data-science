@@ -4,6 +4,7 @@ from vw_executor.vw_opts import Grid
 import pandas as pd
 from pathlib import Path
 import shutil
+from vw_executor.loggers import ConsoleLogger
 
 def reset_cache_folder(path):
     p = Path(path)
@@ -540,7 +541,7 @@ class TestVw(unittest.TestCase):
         cache = Path('.vw_cache_test')
         reset_cache_folder(cache)
         
-        vw = Vw(cache, handlers = [])
+        vw = Vw(cache, handlers = [], loggers=[ConsoleLogger('DEBUG')])
         stdout_cache = cache.joinpath('cacheNone')
 
         result = vw.test(self.input1, '--cb_explore_adf --dsjson')
@@ -568,7 +569,7 @@ class TestVw(unittest.TestCase):
         cache = Path('.vw_cache_train')
         reset_cache_folder(cache)
         
-        vw = Vw(cache, handlers = [])
+        vw = Vw(cache, handlers = [], loggers=[ConsoleLogger('DEBUG')])
         stdout_cache = cache.joinpath('cacheNone')
         model_cache = cache.joinpath('cache-f')
 
@@ -598,7 +599,7 @@ class TestVw(unittest.TestCase):
         self.assertIsNotNone(result[1].loss)
 
     def test_failing_task(self):
-        vw = Vw('.vw_cache', handlers = [])
+        vw = Vw('.vw_cache', handlers = [], loggers=[ConsoleLogger('DEBUG')])
         
         result = vw.train([self.input1, self.input_ccb], '--cb_explore_adf --dsjson --strict_parse')
         self.assertEqual(isinstance(result, Job), True)
