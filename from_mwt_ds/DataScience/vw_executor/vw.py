@@ -320,10 +320,9 @@ class _VwPy:
         self.path=None
 
     def run(self, args):
-        return _run_pyvw(args)
-    #    from multiprocessing import Pool
-    #    with Pool(1) as p:
-    #        return p.apply(_run_pyvw, [args])
+        from multiprocessing import Pool
+        with Pool(1) as p:
+            return p.apply(_run_pyvw, [args])
 
 class Vw:
     def __init__(self, cache_path,
