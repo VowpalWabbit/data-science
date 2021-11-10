@@ -3,11 +3,12 @@ from pathlib import Path
 
 
 class ProgressBars:      
-    def __init__(self, leave=False):
+    def __init__(self, leave=False, verbose=False):
         self.total = None
         self.tasks = 0
         self.leave = leave
         self.jobs = {}
+        self.verbose = verbose
 
     def on_start(self, inputs, opts):
         from tqdm import tqdm_notebook as tqdm
@@ -20,11 +21,13 @@ class ProgressBars:
 
     def on_job_start(self, job):
         from tqdm import tqdm_notebook as tqdm
-        self.jobs[job.name] = tqdm(range(self.tasks), desc=job.name, leave=self.leave)
+        if self.verbose:
+            self.jobs[job.name] = tqdm(range(self.tasks), desc=job.name, leave=self.leave)
 
     def on_job_finish(self, job):
-        self.jobs[job.name].close()
-        self.jobs.pop(job.name)
+        if self.verbose:
+            self.jobs[job.name].close()
+            self.jobs.pop(job.name)
         self.total.update(1)
         self.total.refresh()
 
@@ -32,8 +35,9 @@ class ProgressBars:
         pass
 
     def on_task_finish(self, job, _task_idx):
-        self.jobs[job.name].update(1)
-        self.jobs[job.name].refresh()
+        if self.verbose:
+            self.jobs[job.name].update(1)
+            self.jobs[job.name].refresh()
 
 
 class AzureMLHandler:
