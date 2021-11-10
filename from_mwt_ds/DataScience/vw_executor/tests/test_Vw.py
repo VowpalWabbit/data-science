@@ -623,6 +623,8 @@ class TestVw(unittest.TestCase):
         self.assertIsNotNone(result[1].loss)
 
     def test_failing_task(self):
+        import multiprocessing
+        print(multiprocessing.get_start_method())
         vw = Vw('.vw_cache', handlers = [], loggers=[ConsoleLogger('DEBUG')])
         
         result = vw.train([self.input1, self.input_ccb], '--cb_explore_adf --dsjson --strict_parse')
