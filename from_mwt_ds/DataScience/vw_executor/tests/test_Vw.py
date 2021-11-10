@@ -4,7 +4,6 @@ from vw_executor.vw_opts import Grid
 import pandas as pd
 from pathlib import Path
 import shutil
-from vw_executor.loggers import ConsoleLogger
 
 def reset_cache_folder(path):
     p = Path(path)
@@ -19,10 +18,7 @@ class TestVw(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         import multiprocessing
-        print('here:')
-        print(multiprocessing.get_start_method())
         multiprocessing.set_start_method('spawn', force=True)
-        print(multiprocessing.get_start_method())
 
     def test_1file_1str_opt_train(self):
         vw = Vw('.vw_cache', handlers = [])
@@ -49,10 +45,9 @@ class TestVw(unittest.TestCase):
         self.assertIsNotNone(result.loss)   
 
     def test_1file_1dict_opt_test(self):
-        vw = Vw('.vw_cache', handlers = [], loggers=[ConsoleLogger('DEBUG')])
+        vw = Vw('.vw_cache', handlers = [])
 
         result = vw.test(self.input1, {'#problem': '--cb_explore_adf', '#format':  '--dsjson'})
-        print(result[0].stdout.raw)
         self.assertTrue(isinstance(result, Job))
         self.assertEqual(len(result), 1)
         self.assertIsNotNone(result.loss) 
@@ -549,37 +544,25 @@ class TestVw(unittest.TestCase):
         cache = Path('.vw_cache_test')
         reset_cache_folder(cache)
         
-        vw = Vw(cache, handlers = [], loggers=[ConsoleLogger('DEBUG')])
+        vw = Vw(cache, handlers = [])
         stdout_cache = cache.joinpath('cacheNone')
 
         result = vw.test(self.input1, '--cb_explore_adf --dsjson')
-        print(result[0].stdout.raw)
         self.assertEqual(len(list(cache.iterdir())), 1)        
         self.assertEqual(len(list(stdout_cache.iterdir())), 1)
         self.assertIsNotNone(result.loss)
 
         result = vw.test([self.input1, self.input2], '--cb_explore_adf --dsjson')
-        print(result[0].stdout.raw)
-        print(result[1].stdout.raw)
         self.assertEqual(len(list(cache.iterdir())), 1)        
         self.assertEqual(len(list(stdout_cache.iterdir())), 2)
         self.assertIsNotNone(result.loss)
 
         result = vw.test([self.input1, self.input2, self.input1], '--cb_explore_adf --dsjson')
-        print(result[0].stdout.raw)
-        print(result[1].stdout.raw)
-        print(result[2].stdout.raw)
         self.assertEqual(len(list(cache.iterdir())), 1)        
         self.assertEqual(len(list(stdout_cache.iterdir())), 2)
         self.assertIsNotNone(result.loss)
 
         result = vw._with(procs=1).test([self.input1, self.input2, self.input1], ['--cb_explore_adf --dsjson', '--cb_explore_adf --dsjson --epsilon 0.5'])
-        print(result[0][0].stdout.raw)
-        print(result[0][1].stdout.raw)
-        print(result[0][2].stdout.raw)
-        print(result[1][0].stdout.raw)
-        print(result[1][1].stdout.raw)
-        print(result[1][2].stdout.raw)
         self.assertEqual(len(list(cache.iterdir())), 1)        
         self.assertEqual(len(list(stdout_cache.iterdir())), 4)
         self.assertIsNotNone(result[0].loss)
@@ -589,41 +572,29 @@ class TestVw(unittest.TestCase):
         cache = Path('.vw_cache_train')
         reset_cache_folder(cache)
         
-        vw = Vw(cache, handlers = [], loggers=[ConsoleLogger('DEBUG')])
+        vw = Vw(cache, handlers = [])
         stdout_cache = cache.joinpath('cacheNone')
         model_cache = cache.joinpath('cache-f')
 
         result = vw.train(self.input1, '--cb_explore_adf --dsjson')
-        print(result[0].stdout.raw)
         self.assertEqual(len(list(cache.iterdir())), 2)        
         self.assertEqual(len(list(stdout_cache.iterdir())), 1)
         self.assertEqual(len(list(model_cache.iterdir())), 1)
         self.assertIsNotNone(result.loss)
 
         result = vw.train([self.input1, self.input2], '--cb_explore_adf --dsjson')
-        print(result[0].stdout.raw)
-        print(result[1].stdout.raw)
         self.assertEqual(len(list(cache.iterdir())), 2)        
         self.assertEqual(len(list(stdout_cache.iterdir())), 2)
         self.assertEqual(len(list(model_cache.iterdir())), 2)
         self.assertIsNotNone(result.loss)
 
         result = vw.train([self.input1, self.input2, self.input1], '--cb_explore_adf --dsjson')
-        print(result[0].stdout.raw)
-        print(result[1].stdout.raw)
-        print(result[2].stdout.raw)
         self.assertEqual(len(list(cache.iterdir())), 2)        
         self.assertEqual(len(list(stdout_cache.iterdir())), 3)
         self.assertEqual(len(list(model_cache.iterdir())), 3)
         self.assertIsNotNone(result.loss)
 
         result = vw._with(procs=1).train([self.input1, self.input2, self.input1], ['--cb_explore_adf --dsjson', '--cb_explore_adf --dsjson --epsilon 0.5'])
-        print(result[0][0].stdout.raw)
-        print(result[0][1].stdout.raw)
-        print(result[0][2].stdout.raw)
-        print(result[1][0].stdout.raw)
-        print(result[1][1].stdout.raw)
-        print(result[1][2].stdout.raw)
         self.assertEqual(len(list(cache.iterdir())), 2)        
         self.assertEqual(len(list(stdout_cache.iterdir())), 6)
         self.assertEqual(len(list(model_cache.iterdir())), 6)
@@ -631,9 +602,7 @@ class TestVw(unittest.TestCase):
         self.assertIsNotNone(result[1].loss)
 
     def test_failing_task(self):
-        import multiprocessing
-        print(multiprocessing.get_start_method())
-        vw = Vw('.vw_cache', handlers = [], loggers=[ConsoleLogger('DEBUG')])
+        vw = Vw('.vw_cache', handlers = [])
         
         result = vw.train([self.input1, self.input_ccb], '--cb_explore_adf --dsjson --strict_parse')
         self.assertEqual(isinstance(result, Job), True)
