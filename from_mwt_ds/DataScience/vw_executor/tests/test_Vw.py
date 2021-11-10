@@ -565,7 +565,7 @@ class TestVw(unittest.TestCase):
         self.assertEqual(len(list(stdout_cache.iterdir())), 2)
         self.assertIsNotNone(result.loss)
 
-        result = vw.test([self.input1, self.input2, self.input1], ['--cb_explore_adf --dsjson', '--cb_explore_adf --dsjson --epsilon 0.5'])
+        result = vw._with(procs=1).test([self.input1, self.input2, self.input1], ['--cb_explore_adf --dsjson', '--cb_explore_adf --dsjson --epsilon 0.5'])
         print(result[0][0].stdout.raw)
         print(result[0][1].stdout.raw)
         print(result[0][2].stdout.raw)
@@ -609,7 +609,7 @@ class TestVw(unittest.TestCase):
         self.assertEqual(len(list(model_cache.iterdir())), 3)
         self.assertIsNotNone(result.loss)
 
-        result = vw.train([self.input1, self.input2, self.input1], ['--cb_explore_adf --dsjson', '--cb_explore_adf --dsjson --epsilon 0.5'])
+        result = vw._with(procs=1).train([self.input1, self.input2, self.input1], ['--cb_explore_adf --dsjson', '--cb_explore_adf --dsjson --epsilon 0.5'])
         print(result[0][0].stdout.raw)
         print(result[0][1].stdout.raw)
         print(result[0][2].stdout.raw)
