@@ -16,11 +16,12 @@ class TestVw(unittest.TestCase):
     input2 = 'vw_executor/tests/data/cb_1.json'
     input_ccb = 'vw_executor/tests/data/ccb_0.json'
 
-    def setUp(self):
+    @classmethod
+    def setUpClass(cls):
         import multiprocessing
         print('here:')
         print(multiprocessing.get_start_method())
-        multiprocessing.set_start_method('spawn')
+        multiprocessing.set_start_method('spawn', force=True)
         print(multiprocessing.get_start_method())
 
     def test_1file_1str_opt_train(self):
