@@ -22,6 +22,6 @@ class MultiThreadPool:
         self.procs = procs
 
     def map(self, task, inputs):
-        p = ThreadPool(processes=self.procs)
         args = [(task, i) for i in inputs]
-        return p.map(_execute, args)
+        with ThreadPool(processes=self.procs) as p:
+            return p.map(_execute, args)

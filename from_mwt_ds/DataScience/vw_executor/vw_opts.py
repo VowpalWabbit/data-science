@@ -1,6 +1,7 @@
 import hashlib
 import pandas as pd
 
+
 class VwOpts(dict):
     def __init__(self, opts):
         if isinstance(opts, str):
@@ -8,7 +9,7 @@ class VwOpts(dict):
         super().__init__(opts)
 
     def __str__(self) -> str:
-        not_none = {k: v for k,v in self.items() if v is not None and not pd.isnull(v)}
+        not_none = {k: v for k, v in self.items() if v is not None and not pd.isnull(v)}
         return ' '.join(['{0} {1}'.format(str(key).strip(), str(self[key]).strip()) if not key.startswith('#')
                         else str(self[key]) for key in sorted(not_none.keys())])
 
@@ -61,10 +62,11 @@ class VwOpts(dict):
 
         return result.strip()
 
+
 class Grid(list):
     def __init__(self, grid):
         if isinstance(grid, dict):
-            super().__init__(product(*[dimension(k, v) for k,v in grid.items()]))
+            super().__init__(product(*[dimension(k, v) for k, v in grid.items()]))
         else:
             super().__init__({VwOpts(o) for o in grid})
 
@@ -73,6 +75,7 @@ class Grid(list):
 
     def __add__(self, other):
         return Grid(list(self) + list(other))     
+
 
 class InteractiveGrid(dict):
     def __init__(self, grid):

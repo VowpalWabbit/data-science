@@ -109,7 +109,8 @@ class Output:
 
     @property
     def raw(self):
-        return open(self.path, 'r').readlines()
+        with open(self.path, 'r') as f:
+            return f.readlines()
     
     @property
     def loss(self):
@@ -247,6 +248,9 @@ class Job:
     def __getitem__(self, i):
         return self._tasks[i]
 
+    def __len__(self):
+        return len(self._tasks)
+
     @property
     def loss(self):
         return self[-1].loss
@@ -286,7 +290,7 @@ class TrainJob(Job):
 
 
 def _assert_path_is_supported(path):
-    if ' -' in path:
+    if ' -' in str(path):
         raise ValueError(f'Paths that are containing " -" as substring are not supported: {path}')
     return path
 
@@ -308,15 +312,15 @@ class _VwBin:
 
 def _run_pyvw(args):
     from vowpalwabbit import pyvw
-    result = pyvw.vw(args, enable_logging=True)
-    return result.get_log()
+    with pyvw.vw(args, enable_logging=True) as execution:
+        return execution.get_log()
 
 class _VwPy:
     def __init__(self):
         self.path=None
 
     def run(self, args):
-        from multiprocess import Pool
+        from multiprocessing import Pool
         with Pool(1) as p:
             return p.apply(_run_pyvw, [args])
 
@@ -355,11 +359,12 @@ class Vw:
         if not isinstance(inputs, list):
             inputs = [inputs]
         inputs = [_assert_path_is_supported(i) for i in inputs]
-        self.handler.on_start(inputs, opts)
         if isinstance(opts, list):
+            self.handler.on_start(inputs, opts)
             args = [(inputs, point, outputs, input_mode, input_dir, job_type) for point in opts]
             result = self.pool.map(self._run_impl, args)
         else:
+            self.handler.on_start(inputs, [opts])
             result = self._run_impl(inputs, opts, outputs, input_mode, input_dir, job_type)
         self.handler.on_finish(result)
         return result
