@@ -49,9 +49,10 @@ class TestVw(unittest.TestCase):
         self.assertIsNotNone(result.loss)   
 
     def test_1file_1dict_opt_test(self):
-        vw = Vw('.vw_cache', handlers = [])
+        vw = Vw('.vw_cache', handlers = [], loggers=[ConsoleLogger('DEBUG')])
 
         result = vw.test(self.input1, {'#problem': '--cb_explore_adf', '#format':  '--dsjson'})
+        print(result[0].stdout.raw)
         self.assertTrue(isinstance(result, Job))
         self.assertEqual(len(result), 1)
         self.assertIsNotNone(result.loss) 
