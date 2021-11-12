@@ -1,16 +1,17 @@
-import os
 import shutil
+from pathlib import Path
 
 
 class ProgressBars:      
-    def __init__(self, leave=False):
+    def __init__(self, leave=False, verbose=False):
         self.total = None
         self.tasks = 0
         self.leave = leave
         self.jobs = {}
+        self.verbose = verbose
 
     def on_start(self, inputs, opts):
-        from tqdm import tqdm_notebook as tqdm
+        from tqdm.notebook import tqdm
         self.jobs = {}
         self.tasks = len(inputs)
         self.total = tqdm(range(len(opts)), desc='Total', leave=self.leave)
@@ -19,12 +20,14 @@ class ProgressBars:
         self.total.close()
 
     def on_job_start(self, job):
-        from tqdm import tqdm_notebook as tqdm
-        self.jobs[job.name] = tqdm(range(self.tasks), desc=job.name, leave=self.leave)
+        from tqdm.notebook import tqdm
+        if self.verbose:
+            self.jobs[job.name] = tqdm(range(self.tasks), desc=job.name, leave=self.leave)
 
     def on_job_finish(self, job):
-        self.jobs[job.name].close()
-        self.jobs.pop(job.name)
+        if self.verbose:
+            self.jobs[job.name].close()
+            self.jobs.pop(job.name)
         self.total.update(1)
         self.total.refresh()
 
@@ -32,15 +35,16 @@ class ProgressBars:
         pass
 
     def on_task_finish(self, job, _task_idx):
-        self.jobs[job.name].update(1)
-        self.jobs[job.name].refresh()
+        if self.verbose:
+            self.jobs[job.name].update(1)
+            self.jobs[job.name].refresh()
 
 
 class AzureMLHandler:
     def __init__(self, context, folder=None):
-        self.folder = folder
+        self.folder = Path(folder) if folder is not None else None
         if self.folder:
-            os.makedirs(self.folder, exist_ok=True)
+            self.folder.mkdir(parents=True, exist_ok=True)
         self.context = context
 
     def on_start(self, inputs, opts):
@@ -65,9 +69,9 @@ class AzureMLHandler:
     def on_task_finish(self, job, task_idx):
         from vw_executor.vw import ExecutionStatus
         task = job.tasks[task_idx]
-        if self.folder and os.path.exists(task.stdout_path):
+        if self.folder and task.stdout_path.exists():
             fname = f'{job.name}.{task_idx}.stdout.txt'
-            shutil.copyfile(task.stdout_path, os.path.join(self.folder, fname))
+            shutil.copyfile(task.stdout_path, self.folder.joinpath(fname))
         if task.status == ExecutionStatus.Success:
             per_example = task.metrics['loss_per_example']
             since_last = task.metrics['since_last']

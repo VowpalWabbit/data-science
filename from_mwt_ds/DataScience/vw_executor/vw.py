@@ -31,7 +31,7 @@ def _to(value: str, types: list):
 
 
 # Helper function to extract example counters and metrics from VW output.
-# Counter lines are preceeded by a single line containing the text:
+# Counter lines are preceded by a single line containing the text:
 #   loss     last          counter         weight    label  predict features
 # and followed by a blank line
 # Metric lines have the following form:
@@ -39,7 +39,7 @@ def _to(value: str, types: list):
 
 def _parse_loss(loss_str):
     if loss_str.strip()[-1] == 'h':
-        loss_str = loss_str.strip()[:-1] 
+        loss_str = loss_str.strip()[:-1]
     return _safe_to_float(loss_str, None)
 
 
@@ -62,8 +62,8 @@ def _extract_metrics(out_lines):
                         loss_table['i'].append(count)
                         loss_table['loss'].append(average_loss_f)
                         loss_table['since_last'].append(since_last_f)
-                    except:
-                        ... # todo: handle
+                    except (ValueError, TypeError):
+                        ...  # todo: handle
             elif line.startswith('loss'):
                 fields = line.split()
                 if fields[0] == 'loss' and fields[1] == 'last' and fields[2] == 'counter':
@@ -100,7 +100,7 @@ class Output:
         self._loss = None
         self._loss_table = None
         self._metrics = None
-    
+
     def _process(self):
         self._processed = True
         self._loss_table, self._metrics = _extract_metrics(self.raw)
@@ -111,7 +111,7 @@ class Output:
     def raw(self):
         with open(self.path, 'r') as f:
             return f.readlines()
-    
+
     @property
     def loss(self):
         if not self._processed:
@@ -203,11 +203,11 @@ class Task:
 
     @property
     def metrics(self):
-        return self.stdout.metrics if self.stdout else None   
+        return self.stdout.metrics if self.stdout else None
 
     @property
     def runtime_s(self):
-        return self.end_time - self.start_time if self.end_time else None      
+        return self.end_time - self.start_time if self.end_time else None
 
 
 class Job:
@@ -244,7 +244,7 @@ class Job:
         self._logger.info(f'Job is finished: {self.status}')
         self._handler.on_job_finish(self)
         return self
-    
+
     def __getitem__(self, i):
         return self._tasks[i]
 
@@ -258,7 +258,7 @@ class Job:
     @property
     def loss_table(self):
         return pd.concat([t.stdout.loss_table.assign(file=i)
-                      for i, t in enumerate(self._tasks)]).reset_index().set_index(['file', 'i'])
+                          for i, t in enumerate(self._tasks)]).reset_index().set_index(['file', 'i'])
 
     def to_dict(self):
         return dict(self.opts, **{'!Loss': self.loss, '!Status': self.status.name, '!Job': self})
@@ -294,6 +294,7 @@ def _assert_path_is_supported(path):
         raise ValueError(f'Paths that are containing " -" as substring are not supported: {path}')
     return path
 
+
 class _VwBin:
     def __init__(self, path):
         self.path = path
@@ -310,28 +311,31 @@ class _VwBin:
         error = process.communicate()[1]
         return error
 
+
 def _run_pyvw(args):
     from vowpalwabbit import pyvw
     with pyvw.vw(args, enable_logging=True) as execution:
         return execution.get_log()
 
+
 class _VwPy:
     def __init__(self):
-        self.path=None
+        self.path = None
 
     def run(self, args):
         from multiprocessing import Pool
         with Pool(1) as p:
             return p.apply(_run_pyvw, [args])
 
+
 class Vw:
     def __init__(self, cache_path,
-        path = None,
-        procs=max(1, multiprocessing.cpu_count() // 2),
-        no_run=False,
-        reset=False,
-        handlers=[ProgressBars()],
-        loggers=None):
+                 path=None,
+                 procs=max(1, multiprocessing.cpu_count() // 2),
+                 no_run=False,
+                 reset=False,
+                 handlers=[ProgressBars()],
+                 loggers=None):
         self._cache = VwCache(_assert_path_is_supported(cache_path))
         self._vw = _VwBin(path) if path is not None else _VwPy()
         self.logger = _MultiLoggers(loggers or [])
@@ -342,7 +346,7 @@ class Vw:
         self.last_job = None
 
     def _with(self, path=None, cache_path=None, procs=None, no_run=None, reset=None, handlers=None, loggers=None):
-        return Vw(cache_path or self._cache.path, 
+        return Vw(cache_path or self._cache.path,
                   path or self._vw.path,
                   procs or self.pool.procs,
                   no_run if no_run is not None else self.no_run,
@@ -382,7 +386,7 @@ class Vw:
 
     def cache(self, inputs, opts, input_dir=''):
         if isinstance(opts, pd.DataFrame):
-            opts = opts.loc[:, ~opts.columns.str.startswith('!')].to_dict('records') 
+            opts = opts.loc[:, ~opts.columns.str.startswith('!')].to_dict('records')
             cache_opts = [o_dedup for o_dedup in {VwOpts(o).to_cache_cmd() for o in opts}]
             result = self._run_on_dict(inputs, cache_opts, [], '-d', input_dir, TestJob)
             result_pd = []
@@ -395,7 +399,6 @@ class Vw:
             cache_opts = VwOpts(opts).to_cache_cmd()
         return self._run(inputs, cache_opts, ['--cache_file'], '-d', input_dir, TestJob)
 
-
     def train(self, inputs, opts, outputs=None, input_mode='-d', input_dir=''):
         if isinstance(opts, InteractiveGrid):
             return self._interact(inputs, opts, outputs or [], input_mode, input_dir, TrainJob)
@@ -407,20 +410,24 @@ class Vw:
         return self._run(inputs, opts, outputs or [], input_mode, input_dir, TestJob)
 
     def _interact(self, inputs, opts, outputs, input_mode, input_dir, job_type):
-        from ipywidgets import interactive, fixed, VBox, Layout, GridBox
+        from ipywidgets import interactive, VBox, Layout, GridBox
         from IPython.display import display
         import matplotlib.pyplot as plt
+
         def _run_and_plot(**opts):
-            self.last_job = self._with(handlers=[])._run(inputs, locals()['opts'], outputs, input_mode, input_dir, job_type)
+            self.last_job = self._with(handlers=[])._run(
+                inputs, locals()['opts'], outputs, input_mode, input_dir, job_type)
             ax.clear()
             fig.suptitle('Loss')
             self.last_job.loss_table['loss'].plot(ax=ax)
             fig.canvas.draw()
-        fig, ax = plt.subplots(dpi=100, figsize=[9,4])
+
+        fig, ax = plt.subplots(dpi=100, figsize=[9, 4])
         widget = interactive(_run_and_plot, **opts)
         columns = 4
         rows = (len(widget.children) - 1) // columns + 1
-        layout = Layout(grid_template_rows=' '.join(['auto'] * rows), grid_template_columns=' '.join(['auto'] * columns))
+        layout = Layout(
+            grid_template_rows=' '.join(['auto'] * rows), grid_template_columns=' '.join(['auto'] * columns))
         control_elements = GridBox(children=widget.children[:-1], layout=layout)
         plot = widget.children[-1]
         display(VBox([control_elements, plot]))
