@@ -69,13 +69,14 @@ class AzureMLHandler:
     def on_task_finish(self, job, task_idx):
         from vw_executor.vw import ExecutionStatus
         task = job[task_idx]
-        if self.folder and task.stdout_path.exists():
+        if self.folder and Path(task.stdout.path).exists():
             fname = f'{job.name}.{task_idx}.stdout.txt'
-            shutil.copyfile(task.stdout_path, self.folder.joinpath(fname))
+            with open('stdout.txt', 'w') as f:
+                shutil.copyfile(task.stdout.path, self.folder.joinpath(fname))
         if task.status == ExecutionStatus.Success:
             for i, row in task.loss_table.iterrows():
-                self.context.log_row('loss', count=i, value=row['loss'])
-                self.context.log_row("since_last", count=i, value=row['since_last'])
+                self.context.log(name='loss', value=row['loss'])
+                self.context.log(name='since_last', value=row['since_last'])
 
             for key, value in task.metrics.items():
                 self.context.log(key, value)
