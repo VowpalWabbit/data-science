@@ -55,7 +55,7 @@ class AzureMLHandler:
         for k, v in best.opts.items():
             if k != '#base':
                 self.context.log(k, v)
-        self.context.log('loss', best.loss)
+        self.context.log('best_loss', best.loss)
 
     def on_job_start(self, job):
         pass
@@ -68,22 +68,16 @@ class AzureMLHandler:
 
     def on_task_finish(self, job, task_idx):
         from vw_executor.vw import ExecutionStatus
-        task = job.tasks[task_idx]
+        task = job[task_idx]
         if self.folder and task.stdout_path.exists():
             fname = f'{job.name}.{task_idx}.stdout.txt'
             shutil.copyfile(task.stdout_path, self.folder.joinpath(fname))
         if task.status == ExecutionStatus.Success:
-            per_example = task.metrics['loss_per_example']
-            since_last = task.metrics['since_last']
-            metrics = task.metrics['metrics']
+            for i, row in task.loss_table.iterrows():
+                self.context.log_row('loss', count=i, value=row['loss'])
+                self.context.log_row("since_last", count=i, value=row['since_last'])
 
-            for key, value in per_example.items():
-                self.context.log_row('avg_loss_by_example', count=key, loss=value)
-
-            for key, value in since_last.items():
-                self.context.log("loss_by_example", value)
-
-            for key, value in metrics.items():
+            for key, value in task.metrics.items():
                 self.context.log(key, value)
 
 
