@@ -101,3 +101,36 @@ class Output:
         if not self._processed:
             self._process()
         return self._metrics
+
+class Predictions:
+    def __init__(self, path):
+        self.path = path
+
+    @property
+    def cb(self):
+        result = []
+        with open(self.path) as f:
+            for i, l in enumerate(f):
+                l = l.strip()
+                if len(l) == 0:
+                    continue
+                result.append(dict({kv.split(':')[0]: float(kv.split(':')[1]) 
+                    for kv in l.split(',')}, **{'i': i}))
+        return pd.DataFrame(result).set_index('i')
+
+    @property
+    def ccb(self):
+        result = []
+        with open(self.path) as f:
+            session = 0
+            slot = 0
+            for l in f:
+                l = l.strip()
+                if len(l) == 0:
+                    slot = 0
+                    session += 1
+                    continue
+                result.append(dict({kv.split(':')[0]: float(kv.split(':')[1]) 
+                    for kv in l.split(',')}, **{'session': session, 'slot': slot}))
+                slot += 1
+        return pd.DataFrame(result).set_index(['session', 'slot'])
