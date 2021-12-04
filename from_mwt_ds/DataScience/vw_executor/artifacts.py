@@ -134,3 +134,8 @@ class Predictions:
                     for kv in l.split(',')}, **{'session': session, 'slot': slot}))
                 slot += 1
         return pd.DataFrame(result).set_index(['session', 'slot'])
+
+    @property
+    def regression(self):
+        with open(self.path) as f:
+            return pd.DataFrame([{'i': i, 'y': float(l.strip())}for i, l in enumerate(f)]).set_index('i')
