@@ -18,4 +18,13 @@ class TestPredictions(unittest.TestCase):
 
     def test_predictions_ccb(self):
         predictions = Predictions('vw_executor/tests/data/artifacts/pred_ccb.txt')
-        self.assertEqual(len(predictions.ccb), 22)        
+        self.assertEqual(len(predictions.ccb), 22)
+
+class TestModel(unittest.TestCase):
+    def test_readable_model(self):
+        model = Model('vw_executor/tests/data/artifacts/readable_model.txt')
+        self.assertEqual(len(model.weights), 3)
+
+    def test_invert_hash(self):
+        model = Model('vw_executor/tests/data/artifacts/invert_hash.txt')
+        self.assertEqual(len(model.weights), 3)           

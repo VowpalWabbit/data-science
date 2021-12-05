@@ -118,7 +118,7 @@ class Predictions(Artifact):
             l = l.strip()
             if len(l) == 0:
                 continue
-            result.append(dict({kv.split(':')[0]: float(kv.split(':')[1]) 
+            result.append(dict({kv.split(':')[0]: _safe_to_float(kv.split(':')[1], None) 
                 for kv in l.split(',')}, **{'i': i}))
         return pd.DataFrame(result).set_index('i')
 
@@ -133,7 +133,7 @@ class Predictions(Artifact):
                 slot = 0
                 session += 1
                 continue
-            result.append(dict({kv.split(':')[0]: float(kv.split(':')[1]) 
+            result.append(dict({kv.split(':')[0]: _safe_to_float(kv.split(':')[1], None) 
                 for kv in l.split(',')}, **{'session': session, 'slot': slot}))
             slot += 1
         return pd.DataFrame(result).set_index(['session', 'slot'])
@@ -141,4 +141,23 @@ class Predictions(Artifact):
     @property
     def scalar(self):
         with open(self.path) as f:
-            return pd.DataFrame([{'i': i, 'y': float(l.strip())}for i, l in enumerate(f)]).set_index('i')
+            return pd.DataFrame([{'i': i, 'y': _safe_to_float(l.strip(), None)}for i, l in enumerate(f)]).set_index('i')
+
+
+class Model(Artifact):
+    def __init__(self, path):
+        super().__init__(path)
+
+    @property
+    def weights(self):
+        result = {'name': [], 'weight': []}
+        weights = False
+        for l in self.raw:
+            if weights:
+                parts = l.split(':')
+                result['name'].append(parts[0])
+                result['weight'].append(_safe_to_float(parts[-1], None))
+            if l.strip() == ':0':
+                weights = True
+        return pd.DataFrame(result).set_index('name')
+

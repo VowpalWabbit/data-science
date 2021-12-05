@@ -6,7 +6,7 @@ import time
 
 import pandas as pd
 
-from vw_executor.artifacts import Output, Predictions
+from vw_executor.artifacts import Output, Predictions, Model
 from vw_executor.pool import SeqPool, MultiThreadPool
 from vw_executor.loggers import _MultiLoggers
 from vw_executor.handlers import _Handlers
@@ -97,6 +97,9 @@ class Task:
 
     def predictions(self, key):
         return self._get_artifact(key, Predictions)
+
+    def model(self, key):
+        return self._get_artifact(key, Model)
 
     @property
     def loss(self):
