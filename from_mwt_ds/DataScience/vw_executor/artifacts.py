@@ -65,9 +65,19 @@ def _extract_metrics(out_lines):
         return pd.DataFrame(loss_table).set_index('i'), metrics
 
 
-class Output:
+class Artifact:
     def __init__(self, path):
         self.path = path
+
+    @property
+    def raw(self):
+        with open(self.path, 'r') as f:
+            return f.readlines()
+
+
+class Output(Artifact):
+    def __init__(self, path):
+        super().__init__(path)
         self._processed = False
         self._loss = None
         self._loss_table = None
@@ -78,11 +88,6 @@ class Output:
         self._loss_table, self._metrics = _extract_metrics(self.raw)
         if 'average loss' in self._metrics:
             self._loss = self._metrics['average loss']
-
-    @property
-    def raw(self):
-        with open(self.path, 'r') as f:
-            return f.readlines()
 
     @property
     def loss(self):
@@ -102,37 +107,35 @@ class Output:
             self._process()
         return self._metrics
 
-class Predictions:
+class Predictions(Artifact):
     def __init__(self, path):
-        self.path = path
+        super().__init__(path)
 
     @property
     def cb(self):
         result = []
-        with open(self.path) as f:
-            for i, l in enumerate(f):
-                l = l.strip()
-                if len(l) == 0:
-                    continue
-                result.append(dict({kv.split(':')[0]: float(kv.split(':')[1]) 
-                    for kv in l.split(',')}, **{'i': i}))
+        for i, l in enumerate(self.raw):
+            l = l.strip()
+            if len(l) == 0:
+                continue
+            result.append(dict({kv.split(':')[0]: float(kv.split(':')[1]) 
+                for kv in l.split(',')}, **{'i': i}))
         return pd.DataFrame(result).set_index('i')
 
     @property
     def ccb(self):
         result = []
-        with open(self.path) as f:
-            session = 0
-            slot = 0
-            for l in f:
-                l = l.strip()
-                if len(l) == 0:
-                    slot = 0
-                    session += 1
-                    continue
-                result.append(dict({kv.split(':')[0]: float(kv.split(':')[1]) 
-                    for kv in l.split(',')}, **{'session': session, 'slot': slot}))
-                slot += 1
+        session = 0
+        slot = 0
+        for l in self.raw:
+            l = l.strip()
+            if len(l) == 0:
+                slot = 0
+                session += 1
+                continue
+            result.append(dict({kv.split(':')[0]: float(kv.split(':')[1]) 
+                for kv in l.split(',')}, **{'session': session, 'slot': slot}))
+            slot += 1
         return pd.DataFrame(result).set_index(['session', 'slot'])
 
     @property
