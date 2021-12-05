@@ -139,6 +139,6 @@ class Predictions(Artifact):
         return pd.DataFrame(result).set_index(['session', 'slot'])
 
     @property
-    def regression(self):
+    def scalar(self):
         with open(self.path) as f:
             return pd.DataFrame([{'i': i, 'y': float(l.strip())}for i, l in enumerate(f)]).set_index('i')
