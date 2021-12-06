@@ -65,9 +65,19 @@ def _extract_metrics(out_lines):
         return pd.DataFrame(loss_table).set_index('i'), metrics
 
 
-class Output:
+class Artifact:
     def __init__(self, path):
         self.path = path
+
+    @property
+    def raw(self):
+        with open(self.path, 'r') as f:
+            return f.readlines()
+
+
+class Output(Artifact):
+    def __init__(self, path):
+        super().__init__(path)
         self._processed = False
         self._loss = None
         self._loss_table = None
@@ -78,11 +88,6 @@ class Output:
         self._loss_table, self._metrics = _extract_metrics(self.raw)
         if 'average loss' in self._metrics:
             self._loss = self._metrics['average loss']
-
-    @property
-    def raw(self):
-        with open(self.path, 'r') as f:
-            return f.readlines()
 
     @property
     def loss(self):
@@ -101,3 +106,74 @@ class Output:
         if not self._processed:
             self._process()
         return self._metrics
+
+class Predictions(Artifact):
+    def __init__(self, path):
+        super().__init__(path)
+
+    @property
+    def cb(self):
+        result = []
+        for l in self.raw:
+            l = l.strip()
+            if len(l) == 0:
+                continue
+            result.append(dict({kv.split(':')[0]: _safe_to_float(kv.split(':')[1], None) 
+                for kv in l.split(',')}))
+        result = pd.DataFrame(result)
+        result.index.name = 'i'
+        return result
+
+    @property
+    def ccb(self):
+        result = []
+        session = 0
+        slot = 0
+        for l in self.raw:
+            l = l.strip()
+            if len(l) == 0:
+                slot = 0
+                session += 1
+                continue
+            result.append(dict({kv.split(':')[0]: _safe_to_float(kv.split(':')[1], None) 
+                for kv in l.split(',')}, **{'session': session, 'slot': slot}))
+            slot += 1
+        return pd.DataFrame(result).set_index(['session', 'slot'])
+
+    @property
+    def scalar(self):
+        with open(self.path) as f:
+            return pd.DataFrame([{'i': i, 'y': _safe_to_float(l.strip(), None)}for i, l in enumerate(f)]).set_index('i')
+
+    @property
+    def cats(self):
+        result = {'action': [], 'prob': []}
+        for l in self.raw:
+            l = l.strip()
+            if len(l) == 0:
+                continue
+            action, prob = l.split(',')
+            result['action'].append(_safe_to_float(action, None))
+            result['prob'].append(_safe_to_float(prob, None))
+        result = pd.DataFrame(result)
+        result.index.name = 'i'
+        return result
+
+
+class Model(Artifact):
+    def __init__(self, path):
+        super().__init__(path)
+
+    @property
+    def weights(self):
+        result = {'name': [], 'weight': []}
+        weights = False
+        for l in self.raw:
+            if weights:
+                parts = l.split(':')
+                result['name'].append(parts[0])
+                result['weight'].append(_safe_to_float(parts[-1], None))
+            if l.strip() == ':0':
+                weights = True
+        return pd.DataFrame(result).set_index('name')
+
