@@ -114,13 +114,15 @@ class Predictions(Artifact):
     @property
     def cb(self):
         result = []
-        for i, l in enumerate(self.raw):
+        for l in self.raw:
             l = l.strip()
             if len(l) == 0:
                 continue
             result.append(dict({kv.split(':')[0]: _safe_to_float(kv.split(':')[1], None) 
-                for kv in l.split(',')}, **{'i': i}))
-        return pd.DataFrame(result).set_index('i')
+                for kv in l.split(',')}))
+        result = pd.DataFrame(result)
+        result.index.name = 'i'
+        return result
 
     @property
     def ccb(self):
@@ -142,6 +144,20 @@ class Predictions(Artifact):
     def scalar(self):
         with open(self.path) as f:
             return pd.DataFrame([{'i': i, 'y': _safe_to_float(l.strip(), None)}for i, l in enumerate(f)]).set_index('i')
+
+    @property
+    def cats(self):
+        result = {'action': [], 'prob': []}
+        for l in self.raw:
+            l = l.strip()
+            if len(l) == 0:
+                continue
+            action, prob = l.split(',')
+            result['action'].append(_safe_to_float(action, None))
+            result['prob'].append(_safe_to_float(prob, None))
+        result = pd.DataFrame(result)
+        result.index.name = 'i'
+        return result
 
 
 class Model(Artifact):
