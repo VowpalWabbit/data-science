@@ -14,11 +14,11 @@ class TestPredictions(unittest.TestCase):
 
     def test_predictions_cb(self):
         predictions = Predictions('vw_executor/tests/data/artifacts/pred_cb.txt')
-        self.assertEqual(len(predictions.cb), 10)  
+        self.assertEqual(len(predictions.cb), 11)  
 
     def test_predictions_ccb(self):
         predictions = Predictions('vw_executor/tests/data/artifacts/pred_ccb.txt')
-        self.assertEqual(len(predictions.ccb), 22)
+        self.assertEqual(len(predictions.ccb), 23)
 
     def test_predictions_cats(self):
         predictions = Predictions('vw_executor/tests/data/artifacts/pred_cats.txt')
