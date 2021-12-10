@@ -35,10 +35,10 @@ class Task:
         self._job = job
         self._logger = logger
         self.input_file = input_file
-        self.input_folder = input_folder
+        self.input_folder = Path(input_folder)
         self.status = ExecutionStatus.NotStarted
         self.model_file = model_file
-        self.model_folder = model_folder
+        self.model_folder = Path(model_folder)
         self._no_run = no_run
         self.args = self._prepare_args(self._job._cache)
         self.start_time = None
@@ -49,19 +49,19 @@ class Task:
         opts = self._job.opts.copy()
         opts[self._job.input_mode] = self.input_file
 
-        input_full = Path(self.input_folder).joinpath(self.input_file)
+        input_full = self.input_folder.joinpath(self.input_file)
 
-        salt = Path(input_full).stat().st_size
+        salt = input_full.stat().st_size
         if self.model_file:
             opts['-i'] = self.model_file
 
         self.outputs_relative = {o: cache.get_path(opts, o, salt) for o in self._job.outputs.keys()}
-        self.outputs = {o: Path(cache.path).joinpath(p) for o, p in self.outputs_relative.items()}
+        self.outputs = {o: cache.path.joinpath(p) for o, p in self.outputs_relative.items()}
 
-        self.stdout_path = Path(cache.path).joinpath(cache.get_path(opts, None, salt, self._logger))
+        self.stdout_path = cache.path.joinpath(cache.get_path(opts, None, salt, self._logger))
 
         if self.model_file:
-            opts['-i'] = Path(self.model_folder).joinpath(self.model_file)
+            opts['-i'] = self.model_folder.joinpath(self.model_file)
 
         opts[self._job.input_mode] = input_full
         opts = VwOpts(dict(opts, **self.outputs))
@@ -73,7 +73,7 @@ class Task:
 
     def _run(self, reset):
         result_files = list(self.outputs.values()) + [self.stdout_path]
-        not_exist = next((p for p in result_files if not Path(p).exists()), None)
+        not_exist = next((p for p in result_files if not p.exists()), None)
         self.start_time = time.time()
         if reset or not_exist:
             if not_exist:
@@ -90,7 +90,7 @@ class Task:
         self.status = ExecutionStatus.Success if self.stdout.loss is not None else ExecutionStatus.Failed
 
     def reset_stdout(self):
-        Path(self.stdout_path).unlink()
+        self.stdout_path.unlink()
 
     def _get_artifact(self, key, artifact_type):
         return artifact_type(self.outputs[key])
