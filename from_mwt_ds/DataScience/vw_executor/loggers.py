@@ -94,15 +94,15 @@ class FileLogger(_LoggerCore):
 
 
 class MultiFileLogger(_LoggerCore):
-    def __init__(self, folder=None, level: str = 'INFO', tag=None):
+    def __init__(self, folder=None, level: str = 'INFO'):
         self.level_str = level
         self.folder = Path(folder)
         self.folder.mkdir(parents=True, exist_ok=True)
-        impl = _FileLoggerUnsafe(self.folder.joinpath(f'{tag or "log"}.txt'))
+        impl = _FileLoggerUnsafe(self.folder.joinpath(f'log.txt'))
         super().__init__(impl, logging.getLevelName(self.level_str), None)
 
     def __getitem__(self, key):
-        return MultiFileLogger(folder=self.folder.joinpath(key), level=self.level_str, tag=None)
+        return MultiFileLogger(folder=self.folder.joinpath(key), level=self.level_str)
     
     def trace(self, message: str):
         self.impl.trace(message)
