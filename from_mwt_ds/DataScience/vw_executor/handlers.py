@@ -1,8 +1,26 @@
 import shutil
 from pathlib import Path
 
+class HandlerBase:
+    def on_start(self, inputs, opts): 
+        ...
 
-class ProgressBars:      
+    def on_finish(self, result):
+        ...
+
+    def on_job_start(self, job):
+        ...
+
+    def on_job_finish(self, job):
+        ...
+
+    def on_task_start(self, job, task_idx):
+        ...
+
+    def on_task_finish(self, job, task_idx):
+        ...
+
+class ProgressBars(HandlerBase):      
     def __init__(self, leave=False, verbose=False):
         self.total = None
         self.tasks = 0
@@ -31,24 +49,45 @@ class ProgressBars:
         self.total.update(1)
         self.total.refresh()
 
-    def on_task_start(self, job, task_idx):
-        pass
-
     def on_task_finish(self, job, _task_idx):
         if self.verbose:
             self.jobs[job.name].update(1)
             self.jobs[job.name].refresh()
 
 
-class AzureMLHandler:
-    def __init__(self, context, folder=None):
-        self.folder = Path(folder) if folder is not None else None
-        if self.folder:
-            self.folder.mkdir(parents=True, exist_ok=True)
-        self.context = context
+class ArtifactCopy(HandlerBase):
+    def __init__(self, path, stdout_copy=True, outputs=[], reset=True):
+        self.folder = Path(path)
+        self.folder.mkdir(exist_ok=True, parents=True)
+        self.stdout_copy = stdout_copy
+        self.outputs = outputs
+        self.reset = reset
+
+    def _folder(self, job, output):
+        return self.folder.joinpath(job.name).joinpath(output)
 
     def on_start(self, inputs, opts):
-        pass
+        if self.reset:
+            shutil.rmtree(self.folder)
+
+    def on_job_start(self, job):
+        if self.stdout_copy:
+            self._folder(job, 'stdout').mkdir(exist_ok=True, parents=True)
+        for o in self.outputs:
+            self._folder(job, o).mkdir(exist_ok=True, parents=True)
+
+    def on_task_finish(self, job, task_idx):
+        import shutil
+        folder = self.folder.joinpath(job.name)
+        if self.stdout_copy:
+            shutil.copyfile(job[task_idx].stdout.path, self._folder(job, 'stdout').joinpath(str(task_idx)))
+        for o in self.outputs:
+            shutil.copyfile(job[task_idx].outputs[o], self._folder(job, o).joinpath(str(task_idx)))
+
+
+class AzureMLHandler(HandlerBase):
+    def __init__(self, context):
+        self.context = context
 
     def on_finish(self, result):
         best = result if not isinstance(result, list) else sorted(result, key=lambda x: x.loss)[0]
@@ -57,22 +96,9 @@ class AzureMLHandler:
                 self.context.log(k, v)
         self.context.log('best_loss', best.loss)
 
-    def on_job_start(self, job):
-        pass
-
-    def on_job_finish(self, job):
-        pass
-
-    def on_task_start(self, job, task_idx):
-        pass
-
     def on_task_finish(self, job, task_idx):
         from vw_executor.vw import ExecutionStatus
         task = job[task_idx]
-        if self.folder and Path(task.stdout.path).exists():
-            fname = f'{job.name}.{task_idx}.stdout.txt'
-            with open('stdout.txt', 'w') as f:
-                shutil.copyfile(task.stdout.path, self.folder.joinpath(fname))
         if task.status == ExecutionStatus.Success:
             for i, row in task.loss_table.iterrows():
                 self.context.log(name='loss', value=row['loss'])
