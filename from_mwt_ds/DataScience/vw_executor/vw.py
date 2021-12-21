@@ -8,7 +8,7 @@ import pandas as pd
 
 from vw_executor.artifacts import Output, Predictions, Model
 from vw_executor.pool import SeqPool, MultiThreadPool
-from vw_executor.loggers import _MultiLoggers
+from vw_executor.loggers import MultiLogger
 from vw_executor.handlers import _Handlers
 from vw_executor.vw_cache import VwCache
 from vw_executor.handlers import ProgressBars
@@ -246,7 +246,7 @@ class Vw:
                  loggers=None):
         self._cache = VwCache(_assert_path_is_supported(cache_path))
         self._vw = _VwBin(path) if path is not None else _VwPy()
-        self.logger = _MultiLoggers(loggers or [])
+        self.logger = MultiLogger(loggers or [])
         self.pool = SeqPool() if procs == 1 else MultiThreadPool(procs)
         self.no_run = no_run
         self.handler = _Handlers(handlers or [])
