@@ -55,10 +55,10 @@ class Task:
         if self.model_file:
             opts['-i'] = self.model_file
 
-        self.outputs_relative = {o: cache.get_path(opts, o, salt) for o in self._job.outputs.keys()}
+        self.outputs_relative = {o: cache.get_path(opts, self._logger, o, salt) for o in self._job.outputs.keys()}
         self.outputs = {o: cache.path.joinpath(p) for o, p in self.outputs_relative.items()}
 
-        self.stdout_path = cache.path.joinpath(cache.get_path(opts, None, salt, self._logger))
+        self.stdout_path = cache.path.joinpath(cache.get_path(opts, self._logger, None, salt))
 
         if self.model_file:
             opts['-i'] = self.model_folder.joinpath(self.model_file)
@@ -197,10 +197,10 @@ class TrainJob(Job):
             self._tasks.append(Task(self, self._logger, f, input_dir, model, cache.path, no_run))
 
 
-def _assert_path_is_supported(path):
+def _assert_path_is_supported(path: str) -> Path:
     if ' -' in str(path):
         raise ValueError(f'Paths that are containing " -" as substring are not supported: {path}')
-    return path
+    return Path(path)
 
 
 class _VwBin:
