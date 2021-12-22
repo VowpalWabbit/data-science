@@ -3,14 +3,14 @@ from pathlib import Path
 from vw_executor.loggers import MultiLogger
 from vw_executor.vw_opts import VwOpts
 
-from typing import Optional
+from typing import Optional, Union
 
 
 class VwCache:
     path: Path
 
-    def __init__(self, path: Path):
-        self.path = path
+    def __init__(self, path: Union[str, Path]):
+        self.path = Path(path)
         self.path.mkdir(parents=True, exist_ok=True)
 
     def _get_path(self, context: str, args_hash: str) -> Path:
