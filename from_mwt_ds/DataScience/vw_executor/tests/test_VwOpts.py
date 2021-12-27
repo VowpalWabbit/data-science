@@ -57,7 +57,7 @@ class TestToString(unittest.TestCase):
             str(VwOpts({'#base': '--ccb_explore_adf --epsilon 0.1 --dsjson',
                               '--l': 0.1,
                               '--cb_type': 'mtr'})),
-            '--ccb_explore_adf --epsilon 0.1 --dsjson --cb_type mtr --l 0.1')
+            '--ccb_explore_adf --epsilon 0.1 --dsjson --l 0.1 --cb_type mtr')
 
 
 class TestDimension(unittest.TestCase):
