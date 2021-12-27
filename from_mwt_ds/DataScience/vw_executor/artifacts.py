@@ -1,6 +1,6 @@
 import pandas as pd
 from pathlib import Path
-from typing import Optional, Tuple, Dict, Union, List
+from typing import Optional, Tuple, Dict, Union, List, Any
 
 
 def _safe_to_float(num: str, default: Optional[float]) -> Optional[float]:
@@ -10,7 +10,7 @@ def _safe_to_float(num: str, default: Optional[float]) -> Optional[float]:
         return default
 
 
-def _to(value: str, types: list):
+def _to(value: str, types: list) -> Any:
     for t in types:
         try:
             return t(value)
@@ -83,7 +83,7 @@ class Output(Artifact):
     _processed: bool
     _loss: Optional[float]
     _loss_table: Optional[pd.DataFrame]
-    _metrics: Optional[Dict[str, Optional[Union[str, int, float]]]]
+    _metrics: Optional[Dict[str, Any]]
 
     def __init__(self, path: Union[str, Path]):
         super().__init__(path)
@@ -111,7 +111,7 @@ class Output(Artifact):
         return self._loss_table
 
     @property
-    def metrics(self) -> Optional[Dict[str, Optional[Union[str, int, float]]]]:
+    def metrics(self) -> Optional[Dict[str, Any]]:
         if not self._processed:
             self._process()
         return self._metrics
