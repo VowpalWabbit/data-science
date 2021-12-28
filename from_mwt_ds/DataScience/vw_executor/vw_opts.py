@@ -3,11 +3,11 @@ import pandas as pd
 
 from typing import Dict, Union, Any, List, Iterable
 
-VwOptsLike = Dict[str, Any]
+VwOptsLike = Union[str, Dict[str, Any]]
 
 
 class VwOpts(dict):
-    def __init__(self, opts: Union[str, VwOptsLike]):
+    def __init__(self, opts: VwOptsLike):
         if isinstance(opts, str):
             opts = {'#0': opts}
         super().__init__(opts)
