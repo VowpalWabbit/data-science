@@ -1,7 +1,7 @@
 from pathlib import Path
 
 from vw_executor.loggers import MultiLogger
-from vw_executor.vw_opts import VwOpts
+from vw_executor.vw_opts import VwOptsLike, VwOpts
 
 from typing import Optional, Union
 
@@ -19,10 +19,10 @@ class VwCache:
         return Path(context).joinpath(args_hash)
 
     def get_path(self,
-                 opts: VwOpts,
+                 opts: VwOptsLike,
                  logger: MultiLogger,
                  output: Optional[str] = None,
-                 salt: Optional[str] = None) -> Path:
+                 salt: Optional[int] = None) -> Path:
         args_hash = VwOpts(dict(opts, **{'-#': salt})).hash()
         result = self._get_path(f'cache{output}', args_hash)
         logger.debug(f'Generating path for opts: {str(opts)}, output: {output}. Result: {result}')

@@ -3,11 +3,11 @@ import pandas as pd
 
 from typing import Dict, Union, Any, List, Iterable
 
-TOpt = Dict[str, Any]
+VwOptsLike = Dict[str, Any]
 
 
 class VwOpts(dict):
-    def __init__(self, opts: Union[str, TOpt]):
+    def __init__(self, opts: Union[str, VwOptsLike]):
         if isinstance(opts, str):
             opts = {'#0': opts}
         super().__init__(opts)
@@ -67,11 +67,11 @@ class VwOpts(dict):
         return result.strip()
 
 
-TGrid = List[TOpt]
+GridLike = List[VwOptsLike]
 
 
 class Grid(list):
-    def __init__(self, grid: Union[Iterable[TOpt], Dict[str, Iterable[Any]]]):
+    def __init__(self, grid: Union[Iterable[VwOptsLike], Dict[str, Iterable[Any]]]):
         if isinstance(grid, dict):
             super().__init__(product(*[dimension(k, v) for k, v in grid.items()]))
         else:
@@ -97,14 +97,14 @@ class InteractiveGrid(dict):
         raise Exception('not supported')  
        
 
-def _dim_to_list(d: Union[pd.DataFrame, Iterable[TOpt]]) -> TGrid:
+def _dim_to_list(d: Union[pd.DataFrame, Iterable[VwOptsLike]]) -> GridLike:
     if isinstance(d, pd.DataFrame):
         return Grid(d.loc[:, ~d.columns.str.startswith('!')].to_dict('index').values())
     else:
         return Grid(d)
 
 
-def product(*dimensions: Union[Iterable[TOpt], pd.DataFrame]) -> Grid:
+def product(*dimensions: Union[Iterable[VwOptsLike], pd.DataFrame]) -> Grid:
     import functools
     import itertools
     result = functools.reduce(

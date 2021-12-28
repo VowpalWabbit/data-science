@@ -435,7 +435,7 @@ class TestVw(unittest.TestCase):
         self.assertIsNotNone(result.iloc[1]['!Loss'])
 
     def test_2files_2str_pd_opts_train(self):
-        vw = Vw('.vw_cache', handlers = [])
+        vw = Vw('.vw_cache', handlers=[])
         
         result = vw.train([self.input1, self.input2], pd.DataFrame(Grid([
             '--cb_explore_adf --dsjson --epsilon 0.1',
