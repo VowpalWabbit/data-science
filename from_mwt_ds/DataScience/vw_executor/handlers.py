@@ -1,6 +1,7 @@
 import shutil
 from pathlib import Path
 
+
 class HandlerBase:
     def on_start(self, inputs, opts): 
         ...
@@ -19,6 +20,7 @@ class HandlerBase:
 
     def on_task_finish(self, job, task_idx):
         ...
+
 
 class ProgressBars(HandlerBase):      
     def __init__(self, leave=False, verbose=False):
@@ -56,11 +58,11 @@ class ProgressBars(HandlerBase):
 
 
 class ArtifactCopy(HandlerBase):
-    def __init__(self, path, stdout_copy=True, outputs=[], reset=True):
+    def __init__(self, path, stdout_copy=True, outputs=None, reset=True):
         self.folder = Path(path)
         self.folder.mkdir(exist_ok=True, parents=True)
         self.stdout_copy = stdout_copy
-        self.outputs = outputs
+        self.outputs = outputs or []
         self.reset = reset
 
     def _folder(self, job, output):
@@ -78,7 +80,6 @@ class ArtifactCopy(HandlerBase):
 
     def on_task_finish(self, job, task_idx):
         import shutil
-        folder = self.folder.joinpath(job.name)
         if self.stdout_copy:
             shutil.copyfile(job[task_idx].stdout.path, self._folder(job, 'stdout').joinpath(str(task_idx)))
         for o in self.outputs:
@@ -108,7 +109,7 @@ class AzureMLHandler(HandlerBase):
                 self.context.log(key, value)
 
 
-class _Handlers:
+class MultiHandler:
     def __init__(self, handlers):
         self.handlers = handlers
 

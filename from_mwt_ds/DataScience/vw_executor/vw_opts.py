@@ -1,19 +1,23 @@
 import hashlib
 import pandas as pd
 
+from typing import Dict, Union, Any, List, Iterable
+
+VwOptsLike = Union[str, Dict[str, Any]]
+
 
 class VwOpts(dict):
-    def __init__(self, opts):
+    def __init__(self, opts: VwOptsLike):
         if isinstance(opts, str):
             opts = {'#0': opts}
         super().__init__(opts)
 
     def __str__(self) -> str:
         not_none = {k: v for k, v in self.items() if v is not None and not pd.isnull(v)}
-        return ' '.join(['{0} {1}'.format(str(key).strip(), str(self[key]).strip()) if not key.startswith('#')
-                        else str(self[key]) for key in sorted(not_none.keys())])
+        return ' '.join(['{0} {1}'.format(str(key).strip(), str(value).strip()) if not key.startswith('#')
+                        else str(value) for key, value in not_none.items()])
 
-    def __eq__(self, other):
+    def __eq__(self, other) -> bool:
         return self.hash() == other.hash()
 
     def __hash__(self) -> int:     
@@ -63,41 +67,44 @@ class VwOpts(dict):
         return result.strip()
 
 
+GridLike = List[VwOptsLike]
+
+
 class Grid(list):
-    def __init__(self, grid):
+    def __init__(self, grid: Union[Iterable[VwOptsLike], Dict[str, Iterable[Any]]]):
         if isinstance(grid, dict):
             super().__init__(product(*[dimension(k, v) for k, v in grid.items()]))
         else:
             super().__init__({VwOpts(o) for o in grid})
 
-    def __mul__(self, other):
+    def __mul__(self, other: 'Grid') -> 'Grid':
         return Grid(product(self, other))
 
-    def __add__(self, other):
+    def __add__(self, other: 'Grid') -> 'Grid':
         return Grid(list(self) + list(other))     
 
 
 class InteractiveGrid(dict):
-    def __init__(self, grid):
-        if isinstance(grid, list):
+    def __init__(self, grid: Dict[str, Any]):
+        if not isinstance(grid, dict):
             raise Exception('not supported')
         super().__init__(grid)
 
-    def __mul__(self, other):
+    def __mul__(self, other: Dict[str, Any]):
         return dict(self, **other)
 
-    def __add__(self, other):
+    def __add__(self, other: Dict[str, Any]):
         raise Exception('not supported')  
        
 
-def _dim_to_list(d):
+def _dim_to_list(d: Union[pd.DataFrame, Iterable[VwOptsLike]]) -> GridLike:
     if isinstance(d, pd.DataFrame):
-        return list(d.loc[:, ~d.columns.str.startswith('!')].to_dict('index').values())
+        return Grid(d.loc[:, ~d.columns.str.startswith('!')].to_dict('index').values())
     else:
-        return d
+        return Grid(d)
 
 
-def product(*dimensions: list) -> list:
+def product(*dimensions: Union[Iterable[VwOptsLike], pd.DataFrame]) -> Grid:
     import functools
     import itertools
     result = functools.reduce(
@@ -108,5 +115,5 @@ def product(*dimensions: list) -> list:
     return Grid(result)
 
 
-def dimension(name: str, values: list) -> list:
+def dimension(name: str, values: List[Any]) -> Grid:
     return Grid([{name: v} for v in values])
