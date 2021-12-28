@@ -7,7 +7,7 @@ import time
 import pandas as pd
 
 from vw_executor.artifacts import Output, Predictions, Model
-from vw_executor.pool import SeqPool, MultiThreadPool
+from vw_executor.pool import SeqPool, MultiThreadPool, Pool
 from vw_executor.loggers import MultiLogger, ILogger
 from vw_executor.handlers import MultiHandler
 from vw_executor.vw_cache import VwCache
@@ -313,7 +313,7 @@ class Vw:
     _cache: VwCache
     _vw: _VwCore
     logger: MultiLogger
-    pool: Union[SeqPool, MultiThreadPool]
+    pool: Pool
     no_run: bool
     handler: MultiHandler
     reset: bool
@@ -450,9 +450,9 @@ class Vw:
         from IPython.display import display
         import matplotlib.pyplot as plt
 
-        def _run_and_plot(**opts):
+        def _run_and_plot(**options):
             self.last_job = self._with(handlers=[])._run(
-                inputs, locals()['opts'], outputs, input_mode, input_dir, job_type)
+                inputs, locals()['options'], outputs, input_mode, input_dir, job_type)
             ax.clear()
             fig.suptitle('Loss')
             self.last_job.loss_table['loss'].plot(ax=ax)
