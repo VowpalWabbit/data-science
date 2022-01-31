@@ -1,0 +1,30 @@
+final_regressor = .vw_cache/cache-f/86bd258c6617d55204e2261e65cba33c
+predictions = .vw_cache/cache-p/86bd258c6617d55204e2261e65cba33c
+Num weight bits = 18
+learning rate = 0.5
+initial_t = 0
+power_t = 0.5
+using no cache
+Reading datafile = vw_executor/tests/data/cb_0.json
+WARNING: Old string feature value behavior is deprecated in JSON/DSJSON and will be removed in a future version. Use `--chain_hash` to use new behavior and silence this warning.
+num sources = 1
+Enabled reductions: gd, scorer, csoaa_ldf, cb_adf, cb_explore_adf_greedy, shared_feature_merger
+average  since         example        example  current  current  current
+loss     last          counter         weight    label  predict features
+0.000000 0.000000            1            1.0  0:0:0.5        0:0.5...        4
+-0.500000 -1.000000            2            2.0 1:-1:0.5        0:0.5...        4
+-0.333333 0.000000            3            3.0  0:0:0.5        1:0.975...        4
+-0.737500 -1.950000            4            4.0 1:-1:0.5        1:0.975...        4
+-0.590000 0.000000            5            5.0  0:0:0.5        1:0.975...        4
+-0.816667 -1.950000            6            6.0 1:-1:0.5        1:0.975...        4
+-0.700000 0.000000            7            7.0  0:0:0.5        1:0.975...        4
+-0.856250 -1.950000            8            8.0 1:-1:0.5        1:0.975...        4
+-0.761111 0.000000            9            9.0  0:0:0.5        1:0.975...        4
+-0.880000 -1.950000           10           10.0 1:-1:0.5        1:0.975...        4
+
+finished run
+number of examples = 10
+weighted example sum = 10.000000
+weighted label sum = 0.000000
+average loss = -0.880000
+total feature number = 60

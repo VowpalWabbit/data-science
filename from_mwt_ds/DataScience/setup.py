@@ -2,15 +2,15 @@
 import setuptools
 
 MAJOR               = 0
-MINOR               = 0
-MICRO               = 1
+MINOR               = 1
+MICRO               = 6
 VERSION             = f"{MAJOR}.{MINOR}.{MICRO}"
 
 with open("README.md", "r") as f:
     long_description = f.read()
 
 setuptools.setup(
-    name="vw_executor",
+    name="vw-executor",
     version=VERSION,
     author="Alexey Taymanov",
     author_email="ataymano@gmail.com",
@@ -27,6 +27,7 @@ setuptools.setup(
         "Operating System :: OS Independent",
         "Topic :: Scientific/Engineering"
     ],
-    install_requires = [],
+    install_requires = ['pandas>=1.0.0', 'tqdm>=4.0.0', 'vowpalwabbit >= 8.10.0'],
     python_requires=">=3.6",
+    tests_require=['unittest']
 )
