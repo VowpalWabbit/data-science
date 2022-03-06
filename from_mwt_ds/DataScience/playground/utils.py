@@ -1,6 +1,5 @@
 from vw_executor.vw_opts import VwOpts
 from pathlib import Path
-import matplotlib.pyplot as plt
 
 import pandas as pd
 import json
