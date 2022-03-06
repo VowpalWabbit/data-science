@@ -1,4 +1,4 @@
-from ipywidgets import interactive, VBox, Accordion, Layout, GridBox, fixed
+from ipywidgets import interactive, VBox, Accordion, Layout, GridBox, fixed, display
 from pathlib import Path
 from vw_executor.vw import Vw
 from functools import reduce
