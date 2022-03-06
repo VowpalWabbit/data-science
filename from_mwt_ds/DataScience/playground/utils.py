@@ -6,11 +6,6 @@ import pandas as pd
 import json
 
 
-def new_ax():
-    _, ax = plt.subplots(dpi=100, figsize=[9, 4])
-    return ax
-
-
 def save_examples(examples, path):
     with open(path, 'w') as f:
         for ex in examples:
