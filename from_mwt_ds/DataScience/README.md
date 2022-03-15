@@ -51,12 +51,12 @@ Grid can be constructed using one of the following ways:
 1. From Iterable of CONFIGURATION. For example,
 ```
 from vw_executor.vw_opts import Grid
-vw.train(['input1.txt'], Grid(['--cb_explore_adf --dsjson -l 0.1', '--cb_explore_adf --dsjson -l 0.1']))
+vw.train(['input1.txt'], Grid(['--cb_explore_adf --dsjson -l 0.1', '--cb_explore_adf --dsjson -l 0.2']))
 ```
 
 2. From dictionary with string keys and iterable values.
     1. Grid({'-k': ['v1', 'v2']}) is equivalent to Grid(['-k v1', '-k v2'])
-    2. Grid({'-k1': [v1, v2], '-k2': [v3, v4]}) is equivalent to Grid(['-k1 v1 k2 v3', '-k1 v1 k2 v4', '-k1 v2 k2 v3', '-k1 v2 k2 v4'])
+    2. Grid({'-k1': [v1, v2], '-k2': [v3, v4]}) is equivalent to Grid(['-k1 v1 -k2 v3', '-k1 v1 -k2 v4', '-k1 v2 -k2 v3', '-k1 v2 -k2 v4'])
 
 Grid supports multiplication("and") and summation("or") operators.
 For example,
