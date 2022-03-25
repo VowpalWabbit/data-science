@@ -38,17 +38,29 @@ class VwPlayground:
         self.vw = Vw(cache_path, vw_binary, handlers=[])
 
     def run(self, simulator_grid, vw_grid, columns=4):
-        def _run_and_plot(separator, **options):
+        class State:
+            def __init__(self, opts, examples, examples_path):
+                self.opts = opts
+                self.examples = examples
+                self.examples_path = examples_path
+
+            def update(self, opts, data_folder, simulation):
+                if opts != self.opts:
+                    self.opts = opts
+                    self.examples, self.examples_path = get_simulation(data_folder, simulation, **opts)
+
+        def _run_and_plot(separator, state, **options):
             sim_opts, train_opts = _split(options, separator)
             self.visualization.reset()
-            examples, examples_path = get_simulation(self.data_folder, self.simulation, **sim_opts)
-            self.visualization.after_simulation(examples)
+            state.update(sim_opts, self.data_folder, self.simulation)
+            self.visualization.after_simulation(state.examples)
             self.last_job = self.vw.train(
-                [examples_path], train_opts, self.visualization.vw_outputs)
-            self.visualization.after_train(examples, self.last_job)
+                [state.examples_path], train_opts, self.visualization.vw_outputs)
+            self.visualization.after_train(state.examples, self.last_job)
 
         collapsed, separator = _collapse(simulator_grid, vw_grid)
-        widget = interactive(_run_and_plot, separator=fixed(separator), **collapsed)
+        state = State({}, None, None)
+        widget = interactive(_run_and_plot, separator=fixed(separator), state=fixed(state), **collapsed)
         simulator_controls = _grid_layout(widget.children[:len(simulator_grid)], columns)
         vw_controls = _grid_layout(widget.children[len(simulator_grid):len(simulator_grid) + len(vw_grid)], columns)
         controls = Accordion(children=[simulator_controls, vw_controls])
