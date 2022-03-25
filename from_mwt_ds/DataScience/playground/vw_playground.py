@@ -40,15 +40,12 @@ class VwPlayground:
         self.vw = Vw(cache_path, vw_binary, handlers=[])
 
     def run(self, simulator_grid, vw_grid, columns=4):
-        def _simulate_if_needed(opts):
-            if opts != self.sim_opts:
-                self.sim_opts = opts
-                self.examples, self.examples_path = get_simulation(self.data_folder, self.simulation, **opts)
-
         def _run_and_plot(separator, **options):
             sim_opts, train_opts = _split(options, separator)
             self.visualization.reset()
-            _simulate_if_needed(sim_opts)
+            if sim_opts != self.sim_opts:
+                self.sim_opts = sim_opts
+                self.examples, self.examples_path = get_simulation(self.data_folder, self.simulation, **sim_opts)
             self.visualization.after_simulation(self.examples)
             self.last_job = self.vw.train(
                 [self.examples_path], train_opts, self.visualization.vw_outputs)
