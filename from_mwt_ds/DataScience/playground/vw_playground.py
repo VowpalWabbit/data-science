@@ -32,7 +32,9 @@ class VwPlayground:
     def __init__(self, simulation, visualization, vw_binary=None, cache_path='.cache'):
         self.data_folder = Path(cache_path).joinpath('datasets').joinpath(str(hash(simulation.__code__)))
         self.simulation = simulation
+        self.sim_opts = {}
         self.examples = None
+        self.examples_path = None
         self.visualization = visualization
         self.last_job = None
         self.vw = Vw(cache_path, vw_binary, handlers=[])
@@ -41,11 +43,13 @@ class VwPlayground:
         def _run_and_plot(separator, **options):
             sim_opts, train_opts = _split(options, separator)
             self.visualization.reset()
-            examples, examples_path = get_simulation(self.data_folder, self.simulation, **sim_opts)
-            self.visualization.after_simulation(examples)
+            if sim_opts != self.sim_opts:
+                self.sim_opts = sim_opts
+                self.examples, self.examples_path = get_simulation(self.data_folder, self.simulation, **sim_opts)
+            self.visualization.after_simulation(self.examples)
             self.last_job = self.vw.train(
-                [examples_path], train_opts, self.visualization.vw_outputs)
-            self.visualization.after_train(examples, self.last_job)
+                [self.examples_path], train_opts, self.visualization.vw_outputs)
+            self.visualization.after_train(self.examples, self.last_job)
 
         collapsed, separator = _collapse(simulator_grid, vw_grid)
         widget = interactive(_run_and_plot, separator=fixed(separator), **collapsed)
