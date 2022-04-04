@@ -128,8 +128,9 @@ class Predictions(Artifact):
             line = line.strip()
             if len(line) == 0:
                 continue
-            result.append(dict({kv.split(':')[0]: _safe_to_float(kv.split(':')[1], None)
-                                for kv in line.split(',')}))
+            parts = line.split(',')
+            result.append(dict({parts[i]: _safe_to_float(parts[i+1], None)
+                                for i in range(0, len(parts), 2)}))
         result = pd.DataFrame(result)
         result.index.name = 'i'
         return result
