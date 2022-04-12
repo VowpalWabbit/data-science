@@ -63,6 +63,7 @@ class _VwBin(_VwCore):
 
 def _run_pyvw(args: str) -> Iterable[str]:
     from vowpalwabbit import pyvw
+    
     with pyvw.vw(args, enable_logging=True) as execution:
         return execution.get_log()
 
