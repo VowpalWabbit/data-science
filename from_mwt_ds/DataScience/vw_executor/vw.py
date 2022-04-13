@@ -23,7 +23,7 @@ def _save(txt: Union[str, Iterable[str]], path: Path) -> None:
         if isinstance(txt, str):
             f.write(txt)
         else:
-            f.writelines(txt)
+            f.writelines(map(lambda l: f'{l}\n', txt))
 
 
 class ExecutionStatus(enum.Enum):
@@ -63,8 +63,9 @@ class _VwBin(_VwCore):
 
 def _run_pyvw(args: str) -> Iterable[str]:
     from vowpalwabbit import pyvw
-    with pyvw.vw(args, enable_logging=True) as execution:
-        return execution.get_log()
+    execution = pyvw.vw(args, enable_logging=True)
+    execution.finish()
+    return [l.rstrip() for l in execution.get_log()]
 
 
 class _VwPy(_VwCore):
