@@ -10,10 +10,10 @@ class TestMultiFileLogger(unittest.TestCase):
             shutil.rmtree('test_logs')
 
     def test_nesting_is_supported(self):
-        logger = MultiFileLogger('test_logs', 'DEBUG')
-        logger.debug('root')
+        root = MultiFileLogger('test_logs', 'DEBUG')
+        root.debug('root')
 
-        level1_a = logger['a']
+        level1_a = root['a']
         level1_a.debug('level1_a')
 
         level2_a = level1_a['a']
@@ -22,7 +22,7 @@ class TestMultiFileLogger(unittest.TestCase):
         level2_b = level1_a['b']
         level2_b.debug('level2_b')
 
-        level1_b = logger['b']
+        level1_b = root['b']
         level1_b.debug('level1_b')      
 
         with open('test_logs/log.txt') as f:
