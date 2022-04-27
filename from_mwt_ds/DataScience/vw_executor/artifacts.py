@@ -217,9 +217,8 @@ class Model(Artifact):
             return "*".join([f"{term['namespace']}^{term['name']}" for term in terms]) if terms else None
         with open(self.path) as f:
             weight_rows = json.load(f)["weights"]
-        return pd.DataFrame([{
+        return pd.DataFrame([dict({
             "name": flatten_terms(x.get("terms", None)),
             "index": x["index"],
-            "value": x["value"],
-            "adaptive": x.get("gd_extra_online_state", {}).get("adaptive", None),
-            "normalized":x.get("gd_extra_online_state", {}).get("normalized", None)} for x in weight_rows])    
+            "value": x["value"]},
+            **x.get("gd_extra_online_state", {})) for x in weight_rows])    
