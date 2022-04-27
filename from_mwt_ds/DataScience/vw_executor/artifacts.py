@@ -1,6 +1,7 @@
 import pandas as pd
 from pathlib import Path
 from typing import Optional, Tuple, Dict, Union, List, Any
+import json
 
 
 def _safe_to_float(num: str, default: Optional[float]) -> Optional[float]:
@@ -204,3 +205,21 @@ class Model90(Artifact):
             result['name'].append(parts[0])
             result['weight'].append(_safe_to_float(parts[-1], None))
         return pd.DataFrame(result).set_index('name')
+
+
+class Model(Artifact):
+    def __init__(self, path: Union[str, Path]):
+        super().__init__(path)
+
+    @property
+    def weights(self) -> pd.DataFrame:
+        def flatten_terms(terms):
+            return "*".join([f"{term['namespace']}^{term['name']}" for term in terms]) if terms else None
+
+        weight_rows = json.load(open(self.path))["weights"]
+        return pd.DataFrame([{
+            "name": flatten_terms(x.get("terms", None)),
+            "index": x["index"],
+            "value": x["value"],
+            "adaptive": x.get("gd_extra_online_state", {}).get("adaptive", None),
+            "normalized":x.get("gd_extra_online_state", {}).get("normalized", None)} for x in weight_rows])    
