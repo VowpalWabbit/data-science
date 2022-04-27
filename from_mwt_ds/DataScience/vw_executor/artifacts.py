@@ -215,8 +215,8 @@ class Model(Artifact):
     def weights(self) -> pd.DataFrame:
         def flatten_terms(terms):
             return "*".join([f"{term['namespace']}^{term['name']}" for term in terms]) if terms else None
-
-        weight_rows = json.load(open(self.path))["weights"]
+        with open(self.path) as f:
+            weight_rows = json.load(f)["weights"]
         return pd.DataFrame([{
             "name": flatten_terms(x.get("terms", None)),
             "index": x["index"],

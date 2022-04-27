@@ -28,10 +28,34 @@ class TestPredictions(unittest.TestCase):
 
 
 class TestModel(unittest.TestCase):
-    def test_readable_model(self):
-        model = Model('vw_executor/tests/data/artifacts/readable_model.txt')
+    def test_readable_model_89(self):
+        model = Model89('vw_executor/tests/data/artifacts/readable_model_89.txt')
         self.assertEqual(len(model.weights), 3)
 
-    def test_invert_hash(self):
-        model = Model('vw_executor/tests/data/artifacts/invert_hash.txt')
+    def test_invert_hash_89(self):
+        model = Model89('vw_executor/tests/data/artifacts/invert_hash_89.txt')
+        self.assertEqual(len(model.weights), 3)
+
+    def test_readable_model_90(self):
+        model = Model90('vw_executor/tests/data/artifacts/readable_model_90.txt')
+        self.assertEqual(len(model.weights), 3)
+
+    def test_invert_hash_90(self):
+        model = Model90('vw_executor/tests/data/artifacts/invert_hash_90.txt')
+        self.assertEqual(len(model.weights), 3)
+
+    def test_readable_model_with_online_state_json(self):
+        model = Model('vw_executor/tests/data/artifacts/readable_model_online_state.json')
+        self.assertEqual(len(model.weights), 3)
+
+    def test_invert_hash_with_online_state_json(self):
+        model = Model('vw_executor/tests/data/artifacts/invert_hash_online_state.json')
+        self.assertEqual(len(model.weights), 3)
+
+    def test_readable_model_without_online_state_json(self):
+        model = Model('vw_executor/tests/data/artifacts/readable_model_no_online_state.json')
+        self.assertEqual(len(model.weights), 3)
+
+    def test_invert_hash_without_online_state_json(self):
+        model = Model('vw_executor/tests/data/artifacts/invert_hash_no_online_state.json')
         self.assertEqual(len(model.weights), 3)
