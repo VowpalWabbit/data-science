@@ -171,7 +171,7 @@ class Predictions(Artifact):
         return result
 
 
-class Model(Artifact):
+class Model89(Artifact):
     def __init__(self, path: Union[str, Path]):
         super().__init__(path)
 
@@ -186,4 +186,21 @@ class Model(Artifact):
                 result['weight'].append(_safe_to_float(parts[-1], None))
             if line.strip() == ':0':
                 weights = True
+        return pd.DataFrame(result).set_index('name')
+
+
+class Model90(Artifact):
+    def __init__(self, path: Union[str, Path]):
+        super().__init__(path)
+
+    @property
+    def weights(self) -> pd.DataFrame:
+        result = {'name': [], 'weight': []}
+        for line in reversed(self.raw):
+            if ':' not in line:
+                break
+
+            parts = line.split(' ')[0].split(':')
+            result['name'].append(parts[0])
+            result['weight'].append(_safe_to_float(parts[-1], None))
         return pd.DataFrame(result).set_index('name')
