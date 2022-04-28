@@ -113,6 +113,7 @@ class FileLogger(ILogger):
                  impl: Optional[_ILogger] = None):
         self.level_str = level
         if not impl:
+            Path(path).parent.mkdir(exist_ok=True, parents=True)
             impl = _FileLoggerSafe(Path(path))
         super().__init__(impl, logging.getLevelName(self.level_str), tag)
 
