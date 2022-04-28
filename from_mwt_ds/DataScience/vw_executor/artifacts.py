@@ -1,6 +1,7 @@
 import pandas as pd
 from pathlib import Path
 from typing import Optional, Tuple, Dict, Union, List, Any
+import json
 
 
 def _safe_to_float(num: str, default: Optional[float]) -> Optional[float]:
@@ -171,7 +172,7 @@ class Predictions(Artifact):
         return result
 
 
-class Model(Artifact):
+class Model8(Artifact):
     def __init__(self, path: Union[str, Path]):
         super().__init__(path)
 
@@ -187,3 +188,37 @@ class Model(Artifact):
             if line.strip() == ':0':
                 weights = True
         return pd.DataFrame(result).set_index('name')
+
+
+class Model9(Artifact):
+    def __init__(self, path: Union[str, Path]):
+        super().__init__(path)
+
+    @property
+    def weights(self) -> pd.DataFrame:
+        result = {'name': [], 'weight': []}
+        for line in reversed(self.raw):
+            if ':' not in line:
+                break
+
+            parts = line.split(' ')[0].split(':')
+            result['name'].append(parts[0])
+            result['weight'].append(_safe_to_float(parts[-1], None))
+        return pd.DataFrame(result).set_index('name')
+
+
+class Model(Artifact):
+    def __init__(self, path: Union[str, Path]):
+        super().__init__(path)
+
+    @property
+    def weights(self) -> pd.DataFrame:
+        def flatten_terms(terms):
+            return "*".join([f"{term['namespace']}^{term['name']}" for term in terms]) if terms else None
+        with open(self.path) as f:
+            weight_rows = json.load(f)["weights"]
+        return pd.DataFrame([dict({
+            "name": flatten_terms(x.get("terms", None)),
+            "index": x["index"],
+            "value": x["value"]},
+            **x.get("gd_extra_online_state", {})) for x in weight_rows])    
