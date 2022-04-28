@@ -172,7 +172,7 @@ class Predictions(Artifact):
         return result
 
 
-class Model89(Artifact):
+class Model8(Artifact):
     def __init__(self, path: Union[str, Path]):
         super().__init__(path)
 
@@ -190,7 +190,7 @@ class Model89(Artifact):
         return pd.DataFrame(result).set_index('name')
 
 
-class Model90(Artifact):
+class Model9(Artifact):
     def __init__(self, path: Union[str, Path]):
         super().__init__(path)
 

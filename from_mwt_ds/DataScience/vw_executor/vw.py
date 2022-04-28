@@ -6,7 +6,7 @@ import time
 
 import pandas as pd
 
-from vw_executor.artifacts import Output, Predictions, Model89, Model90, Model
+from vw_executor.artifacts import Output, Predictions, Model8, Model9, Model
 from vw_executor.pool import SeqPool, MultiThreadPool, Pool
 from vw_executor.loggers import MultiLogger, ILogger
 from vw_executor.handlers import MultiHandler
@@ -166,11 +166,11 @@ class Task:
     def predictions(self, key: str) -> Predictions:
         return self._get_artifact(key, Predictions)
 
-    def model89(self, key: str) -> Model89:
-        return self._get_artifact(key, Model89)
+    def model8(self, key: str) -> Model8:
+        return self._get_artifact(key, Model8)
 
-    def model90(self, key: str) -> Model90:
-        return self._get_artifact(key, Model90)
+    def model9(self, key: str) -> Model9:
+        return self._get_artifact(key, Model9)
 
     def model(self, key: str) -> Model:
         return self._get_artifact(key, Model)     
