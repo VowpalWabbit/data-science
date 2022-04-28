@@ -16,9 +16,9 @@ class _ILogger(ABC):
 class ILogger:
     level: int
     impl: _ILogger
-    tag: Optional[str]
+    tag: str
 
-    def __init__(self, impl: _ILogger, level: int, tag: Optional[str]):
+    def __init__(self, impl: _ILogger, level: int, tag: str):
         self.level = level
         self.impl = impl
         self.tag = tag
@@ -44,7 +44,7 @@ class ILogger:
             self._trace(message)
 
     def _trace(self, message: str) -> None:
-        prefix = f'[{time.strftime("%d-%m-%Y %H:%M:%S", time.localtime(time.time()))}][{self.tag or ""}]'
+        prefix = f'[{time.strftime("%d-%m-%Y %H:%M:%S", time.localtime(time.time()))}]{self.tag}'
         self.impl.trace(f'{prefix} {message}')
 
     @abstractmethod
@@ -92,12 +92,12 @@ class _FileLoggerSafe(_ILogger):
 class ConsoleLogger(ILogger):
     level_str: str
 
-    def __init__(self, level: str = 'INFO', tag: Optional[str] = None, impl: _ILogger = _ConsoleLoggerImpl()):
+    def __init__(self, level: str = 'INFO', tag: str = '', impl: _ILogger = _ConsoleLoggerImpl()):
         self.level_str = level
         super().__init__(impl, logging.getLevelName(self.level_str), tag)
 
     def __getitem__(self, key: str) -> 'ConsoleLogger':
-        return ConsoleLogger(self.level_str, key, self.impl)
+        return ConsoleLogger(self.level_str, f'{self.tag}[{key}]', self.impl)
     
     def trace(self, message: str) -> None:
         self.impl.trace(message)
@@ -109,7 +109,7 @@ class FileLogger(ILogger):
     def __init__(self,
                  path: Optional[Union[str, Path]],
                  level: str = 'INFO',
-                 tag: Optional[str] = None,
+                 tag: str = '',
                  impl: Optional[_ILogger] = None):
         self.level_str = level
         if not impl:
@@ -117,7 +117,7 @@ class FileLogger(ILogger):
         super().__init__(impl, logging.getLevelName(self.level_str), tag)
 
     def __getitem__(self, key: str) -> 'FileLogger':
-        return FileLogger(path=None, level=self.level_str, tag=key, impl=self.impl)
+        return FileLogger(path=None, level=self.level_str, tag = f'{self.tag}[{key}]', impl=self.impl)
     
     def trace(self, message: str) -> None:
         self.impl.trace(message)
