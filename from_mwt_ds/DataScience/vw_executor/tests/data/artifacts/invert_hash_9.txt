@@ -1,0 +1,32 @@
+Version 9.1.0
+Id 
+Min label:0
+Max label:2
+bits:18
+lda:0
+0 ngram:
+0 skip:
+options:
+Checksum: 955426453
+:1
+initial_t 0
+norm normalizer 3500
+t 1500
+sum_loss 7.00854
+sum_loss_since_last_dump 7.6901e-07
+dump_interval 2048
+min_label 0
+max_label 2
+weighted_labeled_examples 1500
+weighted_labels 2000
+weighted_unlabeled_examples 0
+example_number 1500
+total_features 3500
+total_weight 1500
+sd::oec.weighted_labeled_examples 1024
+current_pass 1
+l1_state 0
+l2_state 1
+f2:82936:0.999995 20.5693 1
+Constant:116060:7.82366e-06 28.0341 1
+f1:259761:0.999995 22.0759 1
