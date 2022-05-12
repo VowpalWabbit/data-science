@@ -133,7 +133,7 @@ class MultiFileLogger(ILogger):
         self.folder = Path(folder)
         self.folder.mkdir(parents=True, exist_ok=True)
         impl = _FileLoggerUnsafe(self.folder.joinpath(f'log.txt'))
-        super().__init__(impl, logging.getLevelName(self.level_str), None)
+        super().__init__(impl, logging.getLevelName(self.level_str), '')
 
     def __getitem__(self, key: str) -> 'MultiFileLogger':
         return MultiFileLogger(folder=self.folder.joinpath(key), level=self.level_str)
