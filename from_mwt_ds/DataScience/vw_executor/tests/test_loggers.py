@@ -53,6 +53,54 @@ class TestMultiFileLogger(unittest.TestCase):
             self.assertEqual(len(content), 1)
             self.assertEqual(trim_time(content[0]), 'level2_b')  
 
+    def test_no_reset(self):
+        root = MultiFileLogger('test_logs', 'DEBUG')
+        root.debug('root')
+
+        level1_a = root['a']
+        level1_a.debug('level1_a')
+
+        root = MultiFileLogger('test_logs', 'DEBUG')
+        root.debug('root')
+
+        level1_a = root['a']
+        level1_a.debug('level1_a')  
+
+        with open('test_logs/log.txt') as f:
+            content = f.readlines()
+            self.assertEqual(len(content), 2)
+            self.assertEqual(trim_time(content[0]), 'root')
+            self.assertEqual(trim_time(content[1]), 'root')  
+
+        with open('test_logs/a/log.txt') as f:
+            content = f.readlines()
+            self.assertEqual(len(content), 2)
+            self.assertEqual(trim_time(content[0]), 'level1_a')
+            self.assertEqual(trim_time(content[1]), 'level1_a')
+
+    def test_reset(self):
+        root = MultiFileLogger('test_logs', 'DEBUG')
+        root.debug('root')
+
+        level1_a = root['a']
+        level1_a.debug('level1_a')
+
+        root = MultiFileLogger('test_logs', 'DEBUG', reset=True)
+        root.debug('root')
+
+        level1_a = root['a']
+        level1_a.debug('level1_a')  
+
+        with open('test_logs/log.txt') as f:
+            content = f.readlines()
+            self.assertEqual(len(content), 1)
+            self.assertEqual(trim_time(content[0]), 'root') 
+
+        with open('test_logs/a/log.txt') as f:
+            content = f.readlines()
+            self.assertEqual(len(content), 1)
+            self.assertEqual(trim_time(content[0]), 'level1_a')
+
 
 class TestFileLogger(unittest.TestCase):
     def setUp(self):
@@ -84,3 +132,43 @@ class TestFileLogger(unittest.TestCase):
             self.assertEqual(trim_time(content[2]), '[a][a] level2_a') 
             self.assertEqual(trim_time(content[3]), '[a][b] level2_b')  
             self.assertEqual(trim_time(content[4]), '[b] level1_b') 
+
+    def test_no_reset(self):
+        root = FileLogger(self.log_path, 'DEBUG')
+        root.debug('root')
+
+        level1_a = root['a']
+        level1_a.debug('level1_a')
+
+        root = FileLogger(self.log_path, 'DEBUG')
+        root.debug('root')
+
+        level1_a = root['a']
+        level1_a.debug('level1_a')
+
+        with open(self.log_path) as f:
+            content = f.readlines()
+            self.assertEqual(len(content), 4)
+            self.assertEqual(trim_time(content[0]), 'root') 
+            self.assertEqual(trim_time(content[1]), '[a] level1_a')
+            self.assertEqual(trim_time(content[2]), 'root') 
+            self.assertEqual(trim_time(content[3]), '[a] level1_a')
+
+    def test_no_reset(self):
+        root = FileLogger(self.log_path, 'DEBUG')
+        root.debug('root')
+
+        level1_a = root['a']
+        level1_a.debug('level1_a')
+
+        root = FileLogger(self.log_path, 'DEBUG', reset=True)
+        root.debug('root')
+
+        level1_a = root['a']
+        level1_a.debug('level1_a')
+
+        with open(self.log_path) as f:
+            content = f.readlines()
+            self.assertEqual(len(content), 2)
+            self.assertEqual(trim_time(content[0]), 'root') 
+            self.assertEqual(trim_time(content[1]), '[a] level1_a')
