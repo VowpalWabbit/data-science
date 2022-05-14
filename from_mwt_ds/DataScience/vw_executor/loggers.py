@@ -104,6 +104,9 @@ class ConsoleLogger(ILogger):
 
 
 class FileLogger(ILogger):
+    '''
+    Single file logger.
+    '''
     level_str: str
 
     def __init__(self,
@@ -112,6 +115,13 @@ class FileLogger(ILogger):
                  reset: bool = False,
                  tag: str = '',
                  impl: Optional[_ILogger] = None):
+        '''
+        Constructor.
+        Parameters:
+            path: Path to log file
+            level: Severity level (DEBUG/INFO/WARNING/ERROR/CRITICAL)
+            reset: restart log file from scratch if True. Not applicable for inherited loggers.
+        '''
         self.level_str = level
         if not impl:
             path = Path(path)
@@ -134,10 +144,20 @@ class FileLogger(ILogger):
 
 
 class MultiFileLogger(ILogger):
+    '''
+    Multi file logger. New file is created for every inherited context.
+    '''
     level_str: str
     folder: Path
 
     def __init__(self, folder: Union[str, Path], level: str = 'INFO', reset: bool = False):
+        '''
+        Constructor.
+        Parameters:
+            folder: Root folder for all log files
+            level: Severity level (DEBUG/INFO/WARNING/ERROR/CRITICAL)
+            reset: restart log file from scratch if True. Applicable for all inherited loggers.
+        '''
         self.level_str = level
         self.folder = Path(folder)
         self.folder.mkdir(parents=True, exist_ok=True)
