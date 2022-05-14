@@ -104,39 +104,75 @@ class ConsoleLogger(ILogger):
 
 
 class FileLogger(ILogger):
+    '''
+    Single file logger.
+    '''
     level_str: str
 
     def __init__(self,
                  path: Optional[Union[str, Path]],
                  level: str = 'INFO',
+                 reset: bool = False,
                  tag: str = '',
                  impl: Optional[_ILogger] = None):
+        '''
+        Constructor.
+        Parameters:
+            path: Path to log file
+            level: Severity level (DEBUG/INFO/WARNING/ERROR/CRITICAL)
+            reset: restart log file from scratch if True. Not applicable for inherited loggers.
+        '''
         self.level_str = level
         if not impl:
-            Path(path).parent.mkdir(exist_ok=True, parents=True)
-            impl = _FileLoggerSafe(Path(path))
+            path = Path(path)
+            if reset and path.exists():
+                path.unlink()
+            path.parent.mkdir(exist_ok=True, parents=True)
+            impl = _FileLoggerSafe(path)
         super().__init__(impl, logging.getLevelName(self.level_str), tag)
 
     def __getitem__(self, key: str) -> 'FileLogger':
-        return FileLogger(path=None, level=self.level_str, tag = f'{self.tag}[{key}]', impl=self.impl)
+        return FileLogger(
+            path=None,
+            level=self.level_str,
+            reset=False,
+            tag=f'{self.tag}[{key}]',
+            impl=self.impl)
     
     def trace(self, message: str) -> None:
         self.impl.trace(message)
 
 
 class MultiFileLogger(ILogger):
+    '''
+    Multi file logger. New file is created for every inherited context.
+    '''
     level_str: str
     folder: Path
 
-    def __init__(self, folder: Union[str, Path], level: str = 'INFO'):
+    def __init__(self, folder: Union[str, Path], level: str = 'INFO', reset: bool = False):
+        '''
+        Constructor.
+        Parameters:
+            folder: Root folder for all log files
+            level: Severity level (DEBUG/INFO/WARNING/ERROR/CRITICAL)
+            reset: restart log file from scratch if True. Applicable for all inherited loggers.
+        '''
         self.level_str = level
         self.folder = Path(folder)
         self.folder.mkdir(parents=True, exist_ok=True)
-        impl = _FileLoggerUnsafe(self.folder.joinpath(f'log.txt'))
+        self.reset = reset
+        path = self.folder.joinpath(f'log.txt')
+        if self.reset and path.exists():
+            path.unlink()
+        impl = _FileLoggerUnsafe(path)
         super().__init__(impl, logging.getLevelName(self.level_str), '')
 
     def __getitem__(self, key: str) -> 'MultiFileLogger':
-        return MultiFileLogger(folder=self.folder.joinpath(key), level=self.level_str)
+        return MultiFileLogger(
+            folder=self.folder.joinpath(key),
+            level=self.level_str,
+            reset=self.reset)
     
     def trace(self, message: str) -> None:
         self.impl.trace(message)
