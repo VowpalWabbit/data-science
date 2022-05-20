@@ -35,3 +35,12 @@ def cb_df(examples):
         'chosen': e['_labelIndex'],
         'prob': e['_label_probability']
     } for e in examples])
+
+def ccb_df(examples):
+    return pd.DataFrame([{
+        'slot': i,
+        'reward': -e['_outcomes'][i]['_label_cost'],
+        'shared_good': e['c']['shared']['f'],
+        'chosen': e['_outcomes'][i]['_a'][0],
+        'prob': e['_outcomes'][i]['_p'][0]
+    } for e in examples for i in range(len(e['_outcomes']))])
