@@ -204,6 +204,8 @@ class TestGrid(unittest.TestCase):
 
         grid_from_pd = Grid(grid_pd)
         self.assertEqual(len(grid_from_pd), 4)
+        for opts in grid_from_pd:
+            self.assertEqual(sorted(opts.keys()), ['a', 'b'])
            
 
 if __name__ == '__main__':
