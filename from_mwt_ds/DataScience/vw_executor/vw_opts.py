@@ -70,9 +70,15 @@ class VwOpts(dict):
 GridLike = List[VwOptsLike]
 
 
+def _pd_2_dicts(df):
+    return list(df.loc[:, ~df.columns.str.startswith('!')].to_dict('index').values())
+
+
 class Grid(list):
-    def __init__(self, grid: Union[Iterable[VwOptsLike], Dict[str, Iterable[Any]]]):
-        if isinstance(grid, dict):
+    def __init__(self, grid: Union[pd.DataFrame, Iterable[VwOptsLike], Dict[str, Iterable[Any]]]):
+        if isinstance(grid, pd.DataFrame):
+            self.__init__( _pd_2_dicts(grid))
+        elif isinstance(grid, dict):
             super().__init__(product(*[dimension(k, v) for k, v in grid.items()]))
         else:
             super().__init__({VwOpts(o) for o in grid})
@@ -99,7 +105,7 @@ class InteractiveGrid(dict):
 
 def _dim_to_list(d: Union[pd.DataFrame, Iterable[VwOptsLike]]) -> GridLike:
     if isinstance(d, pd.DataFrame):
-        return Grid(d.loc[:, ~d.columns.str.startswith('!')].to_dict('index').values())
+        return Grid(_pd_2_dicts(d))
     else:
         return Grid(d)
 
