@@ -1,5 +1,6 @@
 import unittest
 from vw_executor.vw_opts import VwOpts, dimension, product, Grid
+import pandas as pd
 
 
 def assert_grid_equals_list(tc, actual: Grid, expected: list):
@@ -191,6 +192,20 @@ class TestGrid(unittest.TestCase):
         self.assertEqual(
             Grid({'a': [1, 2], 'b': [3, 4]}),
             Grid({'a': [1, 2]}) * (Grid({'b': [3]}) + Grid({'b': [4]})))
+
+    def test_grid_2_pd_2_grid(self):
+        grid = Grid({'a': [1, 2], 'b': [3, 4]})
+        grid_pd = pd.DataFrame(grid)
+
+        self.assertEqual(len(grid_pd), 4)
+        self.assertEqual(sorted(grid_pd.columns), ['a', 'b'])
+        
+        grid_pd['!Populated'] = 'something'
+
+        grid_from_pd = Grid(grid_pd)
+        self.assertEqual(len(grid_from_pd), 4)
+        for opts in grid_from_pd:
+            self.assertEqual(sorted(opts.keys()), ['a', 'b'])
            
 
 if __name__ == '__main__':
