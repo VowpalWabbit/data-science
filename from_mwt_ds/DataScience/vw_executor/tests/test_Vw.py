@@ -617,3 +617,12 @@ class TestVw(unittest.TestCase):
         self.assertIsNotNone(result[0].loss)
         self.assertIsNone(result[1].loss)
         self.assertEqual(result[1], result.failed)
+
+    def test_train_on_pd_with_non_default_index(self):
+        vw = Vw('.vw_cache', handlers=[])
+        opts = pd.DataFrame(Grid([
+            '--cb_explore_adf --dsjson',
+            '--cb_explore_adf']))
+        opts = opts.rename({0: 'valid', 1: 'invalid'})
+        result = vw.train(self.input1, opts)
+        self.assertEqual(set(result.index), {'valid', 'invalid'})
