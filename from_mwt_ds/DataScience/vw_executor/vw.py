@@ -391,6 +391,17 @@ class Vw:
         self.handler.on_finish(result)
         return result
 
+    def _run_on_dataframe(self,
+                     inputs: Union[str, Path, List[Union[Path, str]]],
+                     opts: pd.DataFrame,
+                     outputs: List[str],
+                     input_mode: str,
+                     input_dir: Union[str, Path],
+                     job_type: Type) -> pd.DataFrame:
+        opts_dict = opts.loc[:, ~opts.columns.str.startswith('!')].to_dict('records')
+        result = self._run_on_dict(inputs, opts_dict, outputs, input_mode, input_dir, job_type)
+        return pd.DataFrame([t.to_dict() for t in result]).set_index(opts.index)                     
+
     def _run(self,
              inputs: Union[str, Path, List[Union[Path, str]]],
              opts: Union[pd.DataFrame, VwOptsLike, GridLike],
@@ -399,12 +410,7 @@ class Vw:
              input_dir: Union[Path, str],
              job_type: Type) -> Union[Job, List[Job], pd.DataFrame]:
         if isinstance(opts, pd.DataFrame):
-            opts = opts.loc[:, ~opts.columns.str.startswith('!')].to_dict('records')
-            result = self._run_on_dict(inputs, opts, outputs, input_mode, input_dir, job_type)
-            result_pd = []
-            for t in result:
-                result_pd.append(t.to_dict())
-            return pd.DataFrame(result_pd)
+            return self._run_on_dataframe(inputs, opts, outputs, input_mode, input_dir, job_type)
         else:
             return self._run_on_dict(inputs, opts, outputs, input_mode, input_dir, job_type)
 
@@ -413,6 +419,7 @@ class Vw:
               opts: Union[pd.DataFrame, VwOptsLike, GridLike],
               input_dir: Union[Path, str] = '') -> Union[Job, List[Job], pd.DataFrame]:
         if isinstance(opts, pd.DataFrame):
+            self.logger.warning('Index is ignored during caching on dataframe')
             opts = opts.loc[:, ~opts.columns.str.startswith('!')].to_dict('records')
             cache_opts = [o_dedup for o_dedup in {VwOpts(o).to_cache_cmd() for o in opts}]
             result = self._run_on_dict(inputs, cache_opts, [], '-d', input_dir, TestJob)
