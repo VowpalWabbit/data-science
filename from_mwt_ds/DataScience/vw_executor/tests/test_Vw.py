@@ -620,9 +620,12 @@ class TestVw(unittest.TestCase):
 
     def test_train_on_pd_with_non_default_index(self):
         vw = Vw('.vw_cache', handlers=[])
-        opts = pd.DataFrame(Grid([
-            '--cb_explore_adf --dsjson',
-            '--cb_explore_adf']))
-        opts = opts.rename({0: 'valid', 1: 'invalid'})
+        opts = pd.DataFrame(Grid({
+            '#base': ['--cb_explore_adf'],
+            '#format': ['', '--dsjson']
+            }))
+        opts = opts.rename(lambda i: 'invalid' if opts.loc[i]['#format']=='' else 'valid')
         result = vw.train(self.input1, opts)
         self.assertEqual(set(result.index), {'valid', 'invalid'})
+        self.assertEqual(result.loc['valid']['!Job'].status, ExecutionStatus.Success)
+        self.assertEqual(result.loc['invalid']['!Job'].status, ExecutionStatus.Failed)
