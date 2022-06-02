@@ -617,3 +617,15 @@ class TestVw(unittest.TestCase):
         self.assertIsNotNone(result[0].loss)
         self.assertIsNone(result[1].loss)
         self.assertEqual(result[1], result.failed)
+
+    def test_train_on_pd_with_non_default_index(self):
+        vw = Vw('.vw_cache', handlers=[])
+        opts = pd.DataFrame(Grid({
+            '#base': ['--cb_explore_adf'],
+            '#format': ['', '--dsjson']
+            }))
+        opts = opts.rename(lambda i: 'invalid' if opts.loc[i]['#format']=='' else 'valid')
+        result = vw.train(self.input1, opts)
+        self.assertEqual(set(result.index), {'valid', 'invalid'})
+        self.assertEqual(result.loc['valid']['!Job'].status, ExecutionStatus.Success)
+        self.assertEqual(result.loc['invalid']['!Job'].status, ExecutionStatus.Failed)
