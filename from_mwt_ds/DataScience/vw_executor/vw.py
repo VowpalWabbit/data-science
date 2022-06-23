@@ -33,6 +33,28 @@ class ExecutionStatus(enum.Enum):
     Failed = 4
 
 
+def _extract_commit(s):
+    import re
+    result = re.search('.*\(git commit:\s+(\S+)\)', s)
+    if result:
+        return result.group(1)
+    return None
+
+
+class Version:
+    def __init__(self, kind: str, version: str):
+        self.kind = kind
+        parts = [int(i) for i in version.split()[0].split('.')]
+        assert len(parts) == 3
+        self.major = parts[0]
+        self.minor = parts[1]
+        self.rev = parts[2]
+        self.commit = _extract_commit(version)
+
+    def __str__(self):
+        return f'{self.kind}-{self.major}.{self.minor}.{self.rev}@{self.commit or ""}'
+
+
 class _VwCore(ABC):
     path: Optional[Path]
 
@@ -44,14 +66,14 @@ class _VwCore(ABC):
         ...
 
     @abstractproperty
-    def version(self):
+    def version(self) -> Version:
         ...
 
 
 class _VwBin(_VwCore):
     def __init__(self, path: Path):
         super().__init__(path)
-        self._version = f'vw-{self.run("--version", stdout=True).strip().split()[0]}'
+        self._version = Version(kind='vw', version=self.run("--version", stdout=True).strip())
 
     def run(self, args: str, stdout: bool = False) -> str:
         command = f'{self.path} {args}'
@@ -66,7 +88,7 @@ class _VwBin(_VwCore):
         return error
 
     @property
-    def version(self):
+    def version(self) -> Version:
         return self._version
 
 
@@ -79,7 +101,9 @@ def _run_pyvw(args: str) -> Iterable[str]:
 
 class _VwPy(_VwCore):
     def __init__(self):
+        import vowpalwabbit
         super().__init__(None)
+        self._version = Version(kind='pyvw', version=vowpalwabbit.__version__)
 
     def run(self, args: str) -> Iterable[str]:
         from multiprocessing import Pool
@@ -87,9 +111,8 @@ class _VwPy(_VwCore):
             return p.apply(_run_pyvw, [args])
 
     @property
-    def version(self):
-        import vowpalwabbit
-        return f'pyvw-{vowpalwabbit.__version__}'
+    def version(self) -> Version:
+        return self._version
 
 
 class Task:
