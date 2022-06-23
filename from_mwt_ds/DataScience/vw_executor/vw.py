@@ -51,7 +51,7 @@ class _VwCore(ABC):
 class _VwBin(_VwCore):
     def __init__(self, path: Path):
         super().__init__(path)
-        self._version = f'vw@{self.run("--version", stdout=True).strip()}'
+        self._version = f'vw-{self.run("--version", stdout=True).strip().split()[0]}'
 
     def run(self, args: str, stdout: bool = False) -> str:
         command = f'{self.path} {args}'
