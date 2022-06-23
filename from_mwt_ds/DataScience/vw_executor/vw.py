@@ -15,7 +15,7 @@ from vw_executor.handlers import HandlerBase, ProgressBars
 from vw_executor.vw_opts import VwOpts, InteractiveGrid, VwOptsLike, GridLike
 
 from typing import Iterable, Optional, Union, Dict, Any, Type, List
-from abc import ABC, abstractmethod
+from abc import ABC, abstractmethod, abstractproperty
 
 
 def _save(txt: Union[str, Iterable[str]], path: Path) -> None:
@@ -43,12 +43,17 @@ class _VwCore(ABC):
     def run(self, args: str) -> Union[str, List[str]]:
         ...
 
+    @abstractproperty
+    def version(self):
+        ...
+
 
 class _VwBin(_VwCore):
     def __init__(self, path: Path):
         super().__init__(path)
+        self._version = f'vw@{self.run("--version", stdout=True).strip()}'
 
-    def run(self, args: str) -> str:
+    def run(self, args: str, stdout: bool = False) -> str:
         command = f'{self.path} {args}'
         process = subprocess.Popen(
             command.split(),
@@ -57,8 +62,12 @@ class _VwBin(_VwCore):
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE
         )
-        error = process.communicate()[1]
+        error = process.communicate()[0 if stdout else 1]
         return error
+
+    @property
+    def version(self):
+        return self._version
 
 
 def _run_pyvw(args: str) -> Iterable[str]:
@@ -76,6 +85,11 @@ class _VwPy(_VwCore):
         from multiprocessing import Pool
         with Pool(1) as p:
             return p.apply(_run_pyvw, [args])
+
+    @property
+    def version(self):
+        import vowpalwabbit
+        return f'pyvw-{vowpalwabbit.__version__}'
 
 
 class Task:
@@ -358,6 +372,10 @@ class Vw:
                   reset if reset is not None else self.reset,
                   handlers if handlers is not None else self.handler.handlers,
                   loggers if loggers is not None else self.logger.loggers)
+
+    @property
+    def version(self):
+        return self._vw.version
 
     def _run_impl(self,
                   inputs: List[Path],
