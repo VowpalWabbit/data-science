@@ -14,9 +14,9 @@ class VwCache:
         self.path.mkdir(parents=True, exist_ok=True)
 
     def _get_path(self, context: str, args_hash: str) -> Path:
-        folder = self.path.joinpath(context)
-        folder.mkdir(parents=True, exist_ok=True)
-        return Path(context).joinpath(args_hash)
+        result = Path(context).joinpath(args_hash)
+        self.path.joinpath(result).mkdir(parents=True, exist_ok=True)
+        return result.joinpath('default')
 
     def get_path(self,
                  opts: VwOptsLike,
