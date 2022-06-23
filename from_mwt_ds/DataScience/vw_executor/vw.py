@@ -370,8 +370,10 @@ class Vw:
                  no_run: bool = False,
                  reset: bool = False,
                  handlers: Union[HandlerBase, List[HandlerBase]] = ProgressBars(),
-                 loggers: Optional[List[ILogger]] = None):
-        self._cache = VwCache(_assert_path_is_supported(cache_path))
+                 loggers: Optional[List[ILogger]] = None,
+                 cache_version: int = 1):
+        self._cache_version = cache_version
+        self._cache = VwCache(_assert_path_is_supported(cache_path), version=cache_version)
         self._vw = _VwBin(path) if path is not None else _VwPy()
         self.logger = MultiLogger(loggers or [])
         self.pool = SeqPool() if procs == 1 else MultiThreadPool(procs)
@@ -387,14 +389,16 @@ class Vw:
               no_run: Optional[bool] = None,
               reset: Optional[bool] = None,
               handlers: Optional[List[HandlerBase]] = None,
-              loggers: Optional[List[ILogger]] = None) -> 'Vw':
+              loggers: Optional[List[ILogger]] = None,
+              cache_version: Optional[int] = None) -> 'Vw':
         return Vw(cache_path or self._cache.path,
                   path or self._vw.path,
                   procs or self.pool.procs,
                   no_run if no_run is not None else self.no_run,
                   reset if reset is not None else self.reset,
                   handlers if handlers is not None else self.handler.handlers,
-                  loggers if loggers is not None else self.logger.loggers)
+                  loggers if loggers is not None else self.logger.loggers,
+                  cache_version or self._cache_version)
 
     @property
     def version(self):
