@@ -9,7 +9,7 @@ import pandas as pd
 from vw_executor.artifacts import Output, Predictions, Model8, Model9, Model
 from vw_executor.pool import SeqPool, MultiThreadPool, Pool
 from vw_executor.loggers import MultiLogger, ILogger
-from vw_executor.handlers import MultiHandler
+from vw_executor.handlers import MultiHandler, HandlerBase
 from vw_executor.vw_cache import VwCache
 from vw_executor.handlers import HandlerBase, ProgressBars
 from vw_executor.vw_opts import VwOpts, InteractiveGrid, VwOptsLike, GridLike
@@ -196,7 +196,7 @@ class Job:
     core: _VwCore
     cache: VwCache
     _logger: MultiLogger
-    _handler: MultiHandler
+    _handler: HandlerBase
     _tasks: List[Task]
     opts: VwOpts
     name: str
@@ -211,7 +211,7 @@ class Job:
                  opts: VwOpts,
                  outputs: List[str],
                  input_mode: str,
-                 handler: MultiHandler,
+                 handler: HandlerBase,
                  logger: MultiLogger):
         self.core = vw
         self.cache = cache
@@ -283,7 +283,7 @@ class TestJob(Job):
                  outputs: List[str],
                  input_mode: str,
                  no_run: bool,
-                 handler: MultiHandler,
+                 handler: HandlerBase,
                  logger: MultiLogger):
         super().__init__(vw, cache, opts, outputs, input_mode, handler, logger)
         for f in files:
@@ -300,7 +300,7 @@ class TrainJob(Job):
                  outputs: List[str],
                  input_mode: str,
                  no_run: bool,
-                 handler: MultiHandler,
+                 handler: HandlerBase,
                  logger: MultiLogger):
         if '-f' not in outputs:
             outputs.append('-f')
@@ -322,7 +322,7 @@ class Vw:
     logger: MultiLogger
     pool: Pool
     no_run: bool
-    handler: MultiHandler
+    handler: HandlerBase
     reset: bool
     last_job: Optional[Job]
 
@@ -332,14 +332,14 @@ class Vw:
                  procs: int = max(1, multiprocessing.cpu_count() // 2),
                  no_run: bool = False,
                  reset: bool = False,
-                 handlers: Union[HandlerBase, List[HandlerBase]] = ProgressBars(),
+                 handler: Optional[HandlerBase] = ProgressBars(),
                  loggers: Optional[List[ILogger]] = None):
         self._cache = VwCache(_assert_path_is_supported(cache_path))
         self._vw = _VwBin(path) if path is not None else _VwPy()
         self.logger = MultiLogger(loggers or [])
         self.pool = SeqPool() if procs == 1 else MultiThreadPool(procs)
         self.no_run = no_run
-        self.handler = MultiHandler(handlers if isinstance(handlers, list) else [handlers])
+        self.handler = handler or MultiHandler([])
         self.reset = reset
         self.last_job = None
 
@@ -349,14 +349,14 @@ class Vw:
               procs: Optional[int] = None,
               no_run: Optional[bool] = None,
               reset: Optional[bool] = None,
-              handlers: Optional[List[HandlerBase]] = None,
+              handler: Optional[HandlerBase] = None,
               loggers: Optional[List[ILogger]] = None) -> 'Vw':
         return Vw(cache_path or self._cache.path,
                   path or self._vw.path,
                   procs or self.pool.procs,
                   no_run if no_run is not None else self.no_run,
                   reset if reset is not None else self.reset,
-                  handlers if handlers is not None else self.handler.handlers,
+                  handler or self.handler,
                   loggers if loggers is not None else self.logger.loggers)
 
     def _run_impl(self,
