@@ -9,9 +9,8 @@ import pandas as pd
 from vw_executor.artifacts import Output, Predictions, Model8, Model9, Model
 from vw_executor.pool import SeqPool, MultiThreadPool, Pool
 from vw_executor.loggers import MultiLogger, ILogger
-from vw_executor.handlers import MultiHandler, HandlerBase
 from vw_executor.vw_cache import VwCache
-from vw_executor.handlers import HandlerBase, ProgressBars
+from vw_executor.handlers import MultiHandler, HandlerBase, ProgressBars
 from vw_executor.vw_opts import VwOpts, InteractiveGrid, VwOptsLike, GridLike
 
 from typing import Iterable, Optional, Union, Dict, Any, Type, List
@@ -465,7 +464,7 @@ class Vw:
         import matplotlib.pyplot as plt
 
         def _run_and_plot(**options):
-            self.last_job = self._with(handlers=[])._run(
+            self.last_job = self._with(handler=None)._run(
                 inputs, locals()['options'], outputs, input_mode, input_dir, job_type)
             ax.clear()
             fig.suptitle('Loss')
