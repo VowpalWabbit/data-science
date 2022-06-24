@@ -37,7 +37,7 @@ class VwPlayground:
         self.examples_path = None
         self.visualization = visualization
         self.last_job = None
-        self.vw = Vw(cache_path, vw_binary, handlers=[])
+        self.vw = Vw(cache_path, vw_binary, handler=None)
 
     def run(self, simulator_grid, vw_grid, columns=4):
         def _run_and_plot(separator, **options):

@@ -14,6 +14,36 @@ class _ILogger(ABC):
 
 
 class ILogger:
+    @abstractmethod    
+    def debug(self, message: str) -> None:
+        ...
+
+    @abstractmethod
+    def info(self, message: str) -> None:
+        ...
+
+    @abstractmethod
+    def warning(self, message: str) -> None:
+        ...
+
+    @abstractmethod
+    def error(self, message: str) -> None:
+        ...
+
+    @abstractmethod
+    def critical(self, message: str) -> None:
+        ...
+
+    @abstractmethod
+    def _trace(self, message: str) -> None:
+        ...
+
+    @abstractmethod
+    def __getitem__(self, key: str) -> 'ILogger':
+        ...
+
+
+class _Logger(ILogger):
     level: int
     impl: _ILogger
     tag: str
@@ -46,10 +76,6 @@ class ILogger:
     def _trace(self, message: str) -> None:
         prefix = f'[{time.strftime("%d-%m-%Y %H:%M:%S", time.localtime(time.time()))}]{self.tag}'
         self.impl.trace(f'{prefix} {message}')
-
-    @abstractmethod
-    def __getitem__(self, key: str) -> 'ILogger':
-        ...
 
 
 class _ConsoleLoggerImpl(_ILogger):
@@ -89,7 +115,7 @@ class _FileLoggerSafe(_ILogger):
         self.lock.release()
 
 
-class ConsoleLogger(ILogger):
+class ConsoleLogger(_Logger):
     level_str: str
 
     def __init__(self, level: str = 'INFO', tag: str = '', impl: _ILogger = _ConsoleLoggerImpl()):
@@ -103,7 +129,7 @@ class ConsoleLogger(ILogger):
         self.impl.trace(message)
 
 
-class FileLogger(ILogger):
+class FileLogger(_Logger):
     '''
     Single file logger.
     '''
@@ -143,7 +169,7 @@ class FileLogger(ILogger):
         self.impl.trace(message)
 
 
-class MultiFileLogger(ILogger):
+class MultiFileLogger(_Logger):
     '''
     Multi file logger. New file is created for every inherited context.
     '''
@@ -178,7 +204,7 @@ class MultiFileLogger(ILogger):
         self.impl.trace(message)
 
 
-class MultiLogger:
+class MultiLogger(ILogger):
     def __init__(self, loggers: List[ILogger]):
         self.loggers = loggers
 
