@@ -332,10 +332,10 @@ class Vw:
                  no_run: bool = False,
                  reset: bool = False,
                  handler: Optional[HandlerBase] = ProgressBars(),
-                 loggers: Optional[List[ILogger]] = None):
+                 logger: Optional[ILogger] = None):
         self._cache = VwCache(_assert_path_is_supported(cache_path))
         self._vw = _VwBin(path) if path is not None else _VwPy()
-        self.logger = MultiLogger(loggers or [])
+        self.logger = logger or MultiLogger([])
         self.pool = SeqPool() if procs == 1 else MultiThreadPool(procs)
         self.no_run = no_run
         self.handler = handler or MultiHandler([])
@@ -349,14 +349,14 @@ class Vw:
               no_run: Optional[bool] = None,
               reset: Optional[bool] = None,
               handler: Optional[HandlerBase] = None,
-              loggers: Optional[List[ILogger]] = None) -> 'Vw':
+              logger: Optional[ILogger] = None) -> 'Vw':
         return Vw(cache_path or self._cache.path,
                   path or self._vw.path,
                   procs or self.pool.procs,
                   no_run if no_run is not None else self.no_run,
                   reset if reset is not None else self.reset,
                   handler or self.handler,
-                  loggers if loggers is not None else self.logger.loggers)
+                  logger or self.logger)
 
     def _run_impl(self,
                   inputs: List[Path],
