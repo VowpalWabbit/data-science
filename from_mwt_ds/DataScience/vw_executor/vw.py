@@ -10,9 +10,10 @@ from vw_executor.artifacts import Output, Predictions, Model8, Model9, Model
 from vw_executor.pool import SeqPool, MultiThreadPool, Pool
 from vw_executor.loggers import MultiLogger, ILogger
 from vw_executor.handlers import MultiHandler
-from vw_executor.vw_cache import VwCache
+from vw_executor.vw_cache import create_cache, VwCache
 from vw_executor.handlers import HandlerBase, ProgressBars
 from vw_executor.vw_opts import VwOpts, InteractiveGrid, VwOptsLike, GridLike
+from vw_executor.version import Version
 
 from typing import Iterable, Optional, Union, Dict, Any, Type, List
 from abc import ABC, abstractmethod, abstractproperty
@@ -31,28 +32,6 @@ class ExecutionStatus(enum.Enum):
     Running = 2
     Success = 3
     Failed = 4
-
-
-def _extract_commit(s):
-    import re
-    result = re.search('.*\(git commit:\s+(\S+)\)', s)
-    if result:
-        return result.group(1)
-    return None
-
-
-class Version:
-    def __init__(self, kind: str, version: str):
-        self.kind = kind
-        parts = [int(i) for i in version.split()[0].split('.')]
-        assert len(parts) == 3
-        self.major = parts[0]
-        self.minor = parts[1]
-        self.rev = parts[2]
-        self.commit = _extract_commit(version)
-
-    def __str__(self):
-        return f'{self.kind}-{self.major}.{self.minor}.{self.rev}@{self.commit or ""}'
 
 
 class _VwCore(ABC):
@@ -161,10 +140,14 @@ class Task:
         if self.model_file:
             opts['-i'] = self.model_file
 
-        self.outputs_relative = {o: cache.get_path(opts, self._logger, o, salt) for o in self.job.outputs.keys()}
+        self.outputs_relative = {
+            o: cache.get_path(opts, self._logger, self.job.core.version, o, salt)
+            for o in self.job.outputs.keys()
+            }
         self.outputs = {o: cache.path.joinpath(p) for o, p in self.outputs_relative.items()}
 
-        self.stdout = Output(cache.path.joinpath(cache.get_path(opts, self._logger, None, salt)))
+        self.stdout = Output(cache.path.joinpath(
+            cache.get_path(opts, self._logger, self.job.core.version, None, salt)))
 
         if self.model_file:
             opts['-i'] = self.model_folder.joinpath(self.model_file)
@@ -373,7 +356,7 @@ class Vw:
                  loggers: Optional[List[ILogger]] = None,
                  cache_version: int = 1):
         self._cache_version = cache_version
-        self._cache = VwCache(_assert_path_is_supported(cache_path), version=cache_version)
+        self._cache = create_cache(_assert_path_is_supported(cache_path), version=cache_version)
         self._vw = _VwBin(path) if path is not None else _VwPy()
         self.logger = MultiLogger(loggers or [])
         self.pool = SeqPool() if procs == 1 else MultiThreadPool(procs)
