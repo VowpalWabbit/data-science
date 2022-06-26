@@ -141,13 +141,13 @@ class Task:
             opts['-i'] = self.model_file
 
         self.outputs_relative = {
-            o: cache.get_path(opts, self._logger, self.job.core.version, o, salt)
+            o: cache.get_path_for_hash(opts, self._logger, o, salt)
             for o in self.job.outputs.keys()
             }
-        self.outputs = {o: cache.path.joinpath(p) for o, p in self.outputs_relative.items()}
+        self.outputs = {o: cache.get_path(p, self.job.core.version) for o, p in self.outputs_relative.items()}
 
-        self.stdout = Output(cache.path.joinpath(
-            cache.get_path(opts, self._logger, self.job.core.version, None, salt)))
+        self.stdout = Output(cache.get_path(
+            cache.get_path_for_hash(opts, self._logger, None, salt), self.job.core.version))
 
         if self.model_file:
             opts['-i'] = self.model_folder.joinpath(self.model_file)
