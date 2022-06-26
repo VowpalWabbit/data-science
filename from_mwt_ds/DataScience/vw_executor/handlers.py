@@ -109,7 +109,7 @@ class AzureMLHandler(HandlerBase):
                 self.context.log(key, value)
 
 
-class MultiHandler:
+class MultiHandler(HandlerBase):
     def __init__(self, handlers):
         self.handlers = handlers
 
