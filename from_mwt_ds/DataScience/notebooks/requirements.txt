@@ -1,0 +1,6 @@
+vw-executor >= 0.2.0
+pandas
+matplotlib
+seaborn
+ipywidgets
+ipympl
