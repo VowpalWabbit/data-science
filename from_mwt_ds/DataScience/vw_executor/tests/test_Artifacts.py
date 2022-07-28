@@ -26,6 +26,10 @@ class TestPredictions(unittest.TestCase):
         predictions = Predictions('vw_executor/tests/data/artifacts/pred_cats.txt')
         self.assertEqual(len(predictions.cats), 10)
 
+    def test_predictions_csoaa_ldf(self):
+        predictions = Predictions('vw_executor/tests/data/artifacts/pred_csoaa_ldf.txt')
+        self.assertEqual(len(predictions.csoaa_ldf), 3)
+
 
 class TestModel(unittest.TestCase):
     def test_readable_model_8(self):
