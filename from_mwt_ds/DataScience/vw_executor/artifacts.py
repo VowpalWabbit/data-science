@@ -10,6 +10,11 @@ def _safe_to_float(num: str, default: Optional[float]) -> Optional[float]:
     except (ValueError, TypeError):
         return default
 
+def _safe_to_int(num: str, default: Optional[int]) -> Optional[int]:
+    try:
+        return int(num)
+    except (ValueError, TypeError):
+        return default
 
 def _to(value: str, types: list) -> Any:
     for t in types:
@@ -170,6 +175,29 @@ class Predictions(Artifact):
         result = pd.DataFrame(result)
         result.index.name = 'i'
         return result
+
+    @property
+    def csoaa_ldf(self) -> pd.DataFrame:
+        result = []
+        index = 0
+        label = 0
+        i = 0
+        for line in self.raw:
+            line = line.strip()
+            if len(line) == 0:
+                result.append({'index': index, 'label': label})
+                index = 0
+                label = 0
+                i = 0
+                continue
+            else:
+                value = _safe_to_int(line, 0)
+                if value:
+                    index = i
+                    label = value
+                i += 1
+       
+        return pd.DataFrame(result)        
 
 
 class Model8(Artifact):
