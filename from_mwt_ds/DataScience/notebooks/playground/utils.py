@@ -31,7 +31,7 @@ def get_simulation(folder, simulator, **kwargs):
 def cb_df(examples):
     return pd.DataFrame([{
         'reward': -e['_label_cost'],
-        'shared_good': e['c']['shared']['f'],
+        'person': e['c']['shared']['name'],
         'chosen': e['_labelIndex'],
         'prob': e['_label_probability']
     } for e in examples])
