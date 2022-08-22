@@ -9,12 +9,13 @@ import pandas as pd
 from vw_executor.artifacts import Output, Predictions, Model8, Model9, Model
 from vw_executor.pool import SeqPool, MultiThreadPool, Pool
 from vw_executor.loggers import MultiLogger, ILogger
-from vw_executor.vw_cache import VwCache
+from vw_executor.vw_cache import VwCache, create_cache
 from vw_executor.handlers import MultiHandler, HandlerBase, ProgressBars
 from vw_executor.vw_opts import VwOpts, InteractiveGrid, VwOptsLike, GridLike
+from vw_executor.version import Version
 
 from typing import Iterable, Optional, Union, Dict, Any, Type, List
-from abc import ABC, abstractmethod
+from abc import ABC, abstractmethod, abstractproperty
 
 
 def _save(txt: Union[str, Iterable[str]], path: Path) -> None:
@@ -42,12 +43,17 @@ class _VwCore(ABC):
     def run(self, args: str) -> Union[str, List[str]]:
         ...
 
+    @abstractproperty
+    def version(self) -> Version:
+        ...
+
 
 class _VwBin(_VwCore):
     def __init__(self, path: Path):
         super().__init__(path)
+        self._version = Version(kind='vw', version=self.run("--version", stdout=True).strip())
 
-    def run(self, args: str) -> str:
+    def run(self, args: str, stdout: bool = False) -> str:
         command = f'{self.path} {args}'
         process = subprocess.Popen(
             command.split(),
@@ -56,8 +62,12 @@ class _VwBin(_VwCore):
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE
         )
-        error = process.communicate()[1]
+        error = process.communicate()[0 if stdout else 1]
         return error
+
+    @property
+    def version(self) -> Version:
+        return self._version
 
 
 def _run_pyvw(args: str) -> Iterable[str]:
@@ -69,12 +79,18 @@ def _run_pyvw(args: str) -> Iterable[str]:
 
 class _VwPy(_VwCore):
     def __init__(self):
+        import vowpalwabbit
         super().__init__(None)
+        self._version = Version(kind='pyvw', version=vowpalwabbit.__version__)
 
     def run(self, args: str) -> Iterable[str]:
         from multiprocessing import Pool
         with Pool(1) as p:
             return p.apply(_run_pyvw, [args])
+
+    @property
+    def version(self) -> Version:
+        return self._version
 
 
 class Task:
@@ -123,10 +139,14 @@ class Task:
         if self.model_file:
             opts['-i'] = self.model_file
 
-        self.outputs_relative = {o: cache.get_path(opts, self._logger, o, salt) for o in self.job.outputs.keys()}
-        self.outputs = {o: cache.path.joinpath(p) for o, p in self.outputs_relative.items()}
+        self.outputs_relative = {
+            o: cache.get_path_for_hash(opts, self._logger, o, salt)
+            for o in self.job.outputs.keys()
+            }
+        self.outputs = {o: cache.get_path(p, self.job.core.version) for o, p in self.outputs_relative.items()}
 
-        self.stdout = Output(cache.path.joinpath(cache.get_path(opts, self._logger, None, salt)))
+        self.stdout = Output(cache.get_path(
+            cache.get_path_for_hash(opts, self._logger, None, salt), self.job.core.version))
 
         if self.model_file:
             opts['-i'] = self.model_folder.joinpath(self.model_file)
@@ -332,8 +352,10 @@ class Vw:
                  no_run: bool = False,
                  reset: bool = False,
                  handler: Optional[HandlerBase] = ProgressBars(),
-                 logger: Optional[ILogger] = None):
-        self._cache = VwCache(_assert_path_is_supported(cache_path))
+                 logger: Optional[ILogger] = None,
+                 cache_version: int = 1):
+        self._cache_version = cache_version
+        self._cache = create_cache(_assert_path_is_supported(cache_path), version=cache_version)
         self._vw = _VwBin(path) if path is not None else _VwPy()
         self.logger = logger or MultiLogger([])
         self.pool = SeqPool() if procs == 1 else MultiThreadPool(procs)
@@ -349,14 +371,20 @@ class Vw:
               no_run: Optional[bool] = None,
               reset: Optional[bool] = None,
               handler: Optional[HandlerBase] = None,
-              logger: Optional[ILogger] = None) -> 'Vw':
+              logger: Optional[ILogger] = None,
+              cache_version: Optional[int] = None) -> 'Vw':
         return Vw(cache_path or self._cache.path,
                   path or self._vw.path,
                   procs or self.pool.procs,
                   no_run if no_run is not None else self.no_run,
                   reset if reset is not None else self.reset,
                   handler or self.handler,
-                  logger or self.logger)
+                  logger or self.logger,
+                  cache_version or self._cache_version)
+
+    @property
+    def version(self):
+        return self._vw.version
 
     def _run_impl(self,
                   inputs: List[Path],
