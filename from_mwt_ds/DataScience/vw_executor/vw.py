@@ -3,6 +3,7 @@ import multiprocessing
 from pathlib import Path
 import subprocess
 import time
+import os
 
 import pandas as pd
 
@@ -47,34 +48,50 @@ class _VwBin(_VwCore):
     def __init__(self, path: Path):
         super().__init__(path)
 
-    def run(self, args: str) -> str:
+    def run(self, args: str, out_path: Path) -> str:
         command = f'{self.path} {args}'
+        stdout_file = open(out_path.parent / (out_path.name + '.out.txt'), 'w')
+        stderr_temp = out_path.parent / (out_path.name + '.pending')
+        stderr_file = open(stderr_temp, 'w')
+
         process = subprocess.Popen(
             command.split(),
             universal_newlines=True,
             encoding='utf-8',
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE
+            stdout=stdout_file,
+            stderr=stderr_file
         )
-        error = process.communicate()[1]
-        return error
+
+        returncode = process.wait()
+        stdout_file.close()
+        stderr_file.close()
+
+        if returncode == 0:
+            os.replace(stderr_temp, out_path)
+
+        return []
 
 
-def _run_pyvw(args: str) -> Iterable[str]:
+def _run_pyvw(args: str, filename=None) -> Iterable[str]:
     from vowpalwabbit import pyvw
     execution = pyvw.vw(args, enable_logging=True)
     execution.finish()
-    return [l.rstrip() for l in execution.get_log()]
+    result = [l.rstrip() for l in execution.get_log()]
+    if filename is not None:
+        _save(result, filename)
+        return []
+    else:
+        return result
 
 
 class _VwPy(_VwCore):
     def __init__(self):
         super().__init__(None)
 
-    def run(self, args: str) -> Iterable[str]:
+    def run(self, args: str, filename=None) -> Iterable[str]:
         from multiprocessing import Pool
         with Pool(1) as p:
-            return p.apply(_run_pyvw, [args])
+            return p.apply(_run_pyvw, [args], {"filename": filename})
 
 
 class Task:
@@ -137,7 +154,7 @@ class Task:
 
     def _execute(self) -> Union[str, Iterable[str]]:
         self._logger.debug(f'Executing: {self.args}')
-        return self.job.core.run(self.args)
+        return self.job.core.run(self.args, self.stdout.path)
 
     def run(self, reset: bool) -> None:
         result_files = list(self.outputs.values()) + [self.stdout.path]
@@ -150,7 +167,7 @@ class Task:
                 raise Exception('Result is not found, and execution is deprecated')
 
             result = self._execute()
-            _save(result, self.stdout.path)
+            assert result == []
         else:
             self._logger.debug(f'Result of vw execution is found: {self.args}')
         self.end_time = time.time()
