@@ -67,7 +67,7 @@ class _VwBin(_VwCore):
         stderr_file.close()
 
         if returncode == 0:
-            os.rename(stderr_temp, out_path)
+            os.replace(stderr_temp, out_path)
 
         return []
 
