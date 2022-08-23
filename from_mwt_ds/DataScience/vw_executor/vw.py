@@ -3,6 +3,7 @@ import multiprocessing
 from pathlib import Path
 import subprocess
 import time
+import os
 
 import pandas as pd
 
@@ -47,10 +48,11 @@ class _VwBin(_VwCore):
     def __init__(self, path: Path):
         super().__init__(path)
 
-    def run(self, args: str, out_path) -> str:
+    def run(self, args: str, out_path: Path) -> str:
         command = f'{self.path} {args}'
         stdout_file = open(out_path.parent / (out_path.name + '.out.txt'), 'w')
-        stderr_file = open(out_path/"", 'w')
+        stderr_temp = out_path.parent / (out_path.name + '.pending')
+        stderr_file = open(stderr_temp, 'w')
 
         process = subprocess.Popen(
             command.split(),
@@ -59,8 +61,13 @@ class _VwBin(_VwCore):
             stdout=stdout_file,
             stderr=stderr_file
         )
+
         returncode = process.wait()
-        assert returncode == 0
+        stdout_file.close()
+        stderr_file.close()
+
+        if returncode == 0:
+            os.rename(stderr_temp, out_path)
 
         return []
 
@@ -84,7 +91,7 @@ class _VwPy(_VwCore):
     def run(self, args: str, filename=None) -> Iterable[str]:
         from multiprocessing import Pool
         with Pool(1) as p:
-            return p.apply(_run_pyvw, [args], {"filename":filename})
+            return p.apply(_run_pyvw, [args], {"filename": filename})
 
 
 class Task:
