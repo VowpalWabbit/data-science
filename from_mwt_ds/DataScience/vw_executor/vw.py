@@ -152,11 +152,7 @@ class Task:
                 return arg
         
         def clean_args(self):
-            args = self.args.split()
-            for i in range(len(args)-1, 0, -1):
-                if args[i] in self.outputs.keys() or args[i] in {"-i", "-d"}:
-                    args.pop(i+1)
-                    args.pop(i)
+            args = self.job.name.split()
 
             args = [remove_argdash(arg) for arg in args]
             return ".".join(args)
@@ -169,8 +165,8 @@ class Task:
             raise ValueError("Input files cannot be on the root folder")
 
         input_file_dir = self.input_file.parent.absolute()
-        input_file_name = str(self.input_file.name)
-        mydir = os.path.join(os.getcwd(), "human", current_time, input_file_dir.name, input_file_name, argdirname, str(self._order_position))
+        input_file_name = str(self._order_position) + "_" + str(self.input_file.name)
+        mydir = os.path.join(os.getcwd(), "human", current_time, argdirname, input_file_dir.name, input_file_name)
         Path(mydir).mkdir(parents=True, exist_ok=True)
 
         for k, filename in self.outputs.items():
