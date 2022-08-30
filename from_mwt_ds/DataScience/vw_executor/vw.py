@@ -164,18 +164,19 @@ class Task:
             raise ValueError("Input files cannot be on the root folder")
 
         input_file_dir = self.input_file.parent.absolute()
-        input_file_name = str(self._order_position) + "_" + str(self.input_file.name)
-        mydir = Path.cwd() / "human" / current_time / argdirname / input_file_dir.name / input_file_name
-        mydir.mkdir(parents=True, exist_ok=True)
+        input_file_name = str(self._order_position) + "th_file"
 
-        for k, filename in self.outputs.items():
-            os.symlink(str(filename.absolute()), mydir / translate_output[k])
+        human_task_dir = Path.cwd() / "human" / current_time / argdirname / input_file_dir.name / input_file_name
+        human_task_dir.mkdir(parents=True, exist_ok=True)
+
+        for output_arg, filename in self.outputs.items():
+            os.symlink(str(filename.absolute()), human_task_dir / translate_output[output_arg])
         
-        os.symlink(self.stdout.path.absolute(), mydir / "stdout.txt")
-        os.symlink(self.input_file.absolute(), mydir / ("input" + self.input_file.suffix))
+        os.symlink(self.stdout.path.absolute(), human_task_dir / "stdout.txt")
+        os.symlink(self.input_file.absolute(), human_task_dir / self.input_file.name)
 
         if self.model_file:
-            os.symlink(str(self.model_folder.joinpath(self.model_file).absolute()), mydir / "input_regressor.vwmodel")
+            os.symlink(str(self.model_folder.joinpath(self.model_file).absolute()), human_task_dir / "input_regressor.vwmodel")
 
     def _prepare_args(self, cache: VwCache) -> str:
         opts = self.job.opts.copy()
