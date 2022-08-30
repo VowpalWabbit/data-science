@@ -164,16 +164,20 @@ class Task:
         argdirname = clean_args(self)
         if not current_time:
             current_time = datetime.now().strftime('%Y-%m-%d_%H-%M-%S')
-        input_file = str(self.input_file.absolute())
-        input_hash= sha512(input_file.encode('utf-8')).hexdigest()[:10]
-        mydir = os.path.join(os.getcwd(), "human", current_time, input_hash, argdirname, str(self._order_position))
+        
+        if self.input_file.parent == self.input_file:
+            raise ValueError("Input files cannot be on the root folder")
+
+        input_file_dir = self.input_file.parent.absolute()
+        input_file_name = str(self.input_file.name)
+        mydir = os.path.join(os.getcwd(), "human", current_time, input_file_dir.name, input_file_name, argdirname, str(self._order_position))
         Path(mydir).mkdir(parents=True, exist_ok=True)
 
         for k, filename in self.outputs.items():
             os.symlink(str(filename.absolute()), os.path.join(mydir, translate_output[k]))
         
         os.symlink(self.stdout.path.absolute(), os.path.join(mydir, "stdout.txt"))
-        os.symlink(input_file, os.path.join(mydir, "input"+self.input_file.suffix))
+        os.symlink(self.input_file.absolute(), os.path.join(mydir, "input"+self.input_file.suffix))
 
         if self.model_file:
             os.symlink(str(self.model_folder.joinpath(self.model_file).absolute()), os.path.join(mydir, "input_regressor.vwmodel"))
