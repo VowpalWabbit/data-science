@@ -140,7 +140,7 @@ class Task:
         if os.name == "nt":
             def symlink_ms(source, link_name):
                 from subprocess import call
-                call(['mklink', link_name, source], shell=True, stderr=subprocess.DEVNULL, stdout=subprocess.DEVNULL)
+                call(['cmd', '/C','mklink', link_name, source], shell=False, stderr=subprocess.DEVNULL, stdout=subprocess.DEVNULL)
             os.symlink = symlink_ms
         
         def remove_argdash(arg: str):
