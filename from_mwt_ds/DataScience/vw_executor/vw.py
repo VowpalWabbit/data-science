@@ -117,6 +117,7 @@ class Task:
                  input_folder: Path,
                  model_file: Optional[Path],
                  model_folder: Path,
+                 order_position: Optional[int] = 0,
                  no_run: bool = False):
         self.job = job
         self._logger = logger
@@ -125,10 +126,54 @@ class Task:
         self.status = ExecutionStatus.NotStarted
         self.model_file = model_file
         self.model_folder = model_folder
+        self._order_position = order_position
         self._no_run = no_run
         self.args = self._prepare_args(self.job.cache)
         self.start_time = None
         self.end_time = None
+    
+    def create_human_readeable_symlink(self):
+        import os
+        from datetime import datetime
+
+        if os.name == "nt":
+            def symlink_ms(source, link_name):
+                from subprocess import call
+                call(['mklink', link_name, source], shell=True)
+            os.symlink = symlink_ms
+        
+        def remove_argdash(arg: str):
+            if len(arg) > 1 and arg[0] == "-" and arg[1] == "-":
+                return arg[2:]
+            elif arg[0] == "-":
+                return arg[1:]
+            else:
+                return arg
+        
+        def clean_args(self):
+            args = self.args.split()
+            for i in range(len(args)-1, 0, -1):
+                if args[i] in self.outputs.keys() or args[i] in {"-i", "-d"}:
+                    args.pop(i+1)
+                    args.pop(i)
+
+            args = [remove_argdash(arg) for arg in args]
+            return ".".join(args)
+        
+        argdirname = clean_args(self)
+        mydir = os.path.join(os.getcwd(), "human", datetime.now().strftime('%Y-%m-%d_%H-%M-%S'), argdirname, str(self._order_position))
+        Path(mydir).mkdir(parents=True, exist_ok=True)
+
+        translate = {"-p": "predictions.txt", "-c": "cache", "-f": "final_regressor.vwmodel", "--extra_metrics": "extra_metrics.json"}
+
+        for k, filename in self.outputs.items():
+            os.symlink(str(filename.absolute()), os.path.join(mydir, translate[k]))
+        
+        os.symlink(self.stdout.path.absolute(), os.path.join(mydir, "stdout.txt"))
+        os.symlink(self.input_file.absolute(), os.path.join(mydir, "input"+self.input_file.suffix))
+        if self.model_file:
+            os.symlink(str(self.model_folder.joinpath(self.model_file).absolute()), os.path.join(mydir, "input_regressor.vwmodel"))
+
 
     def _prepare_args(self, cache: VwCache) -> str:
         opts = self.job.opts.copy()
@@ -302,8 +347,8 @@ class TestJob(Job):
                  handler: HandlerBase,
                  logger: MultiLogger):
         super().__init__(vw, cache, opts, outputs, input_mode, handler, logger)
-        for f in files:
-            self._tasks.append(Task(self, self._logger, f, input_dir, None, cache.path, no_run))
+        for i, f in enumerate(files):
+            self._tasks.append(Task(self, self._logger, f, input_dir, None, cache.path, order_position=i, no_run=no_run))
 
 
 class TrainJob(Job):
@@ -323,7 +368,7 @@ class TrainJob(Job):
         super().__init__(vw, cache, opts, outputs, input_mode, handler, logger)
         for i, f in enumerate(files):
             model = None if i == 0 else self._tasks[i - 1].outputs_relative['-f']
-            self._tasks.append(Task(self, self._logger, f, input_dir, model, cache.path, no_run))
+            self._tasks.append(Task(self, self._logger, f, input_dir, model, cache.path, order_position=i, no_run=no_run))
 
 
 def _assert_path_is_supported(path: Union[str, Path]) -> Path:
