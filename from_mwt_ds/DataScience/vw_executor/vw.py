@@ -132,14 +132,15 @@ class Task:
         self.start_time = None
         self.end_time = None
     
-    def create_human_readeable_symlink(self, translate_output: Dict[str, str] = {"-p": "predictions.txt", "-c": "cache", "-f": "final_regressor.vwmodel", "--extra_metrics": "extra_metrics.json"}) -> None:
+    def create_human_readeable_symlink(self, translate_output: Dict[str, str] = {"-p": "predictions.txt", "-c": "cache", "-f": "final_regressor.vwmodel", "--extra_metrics": "extra_metrics.json"}, current_time: Optional[str] = None) -> None:
         import os
         from datetime import datetime
+        from hashlib import sha512
 
         if os.name == "nt":
             def symlink_ms(source, link_name):
                 from subprocess import call
-                call(['mklink', link_name, source], shell=True)
+                call(['mklink', link_name, source], shell=True, stderr=subprocess.DEVNULL, stdout=subprocess.DEVNULL)
             os.symlink = symlink_ms
         
         def remove_argdash(arg: str):
@@ -161,14 +162,18 @@ class Task:
             return ".".join(args)
         
         argdirname = clean_args(self)
-        mydir = os.path.join(os.getcwd(), "human", datetime.now().strftime('%Y-%m-%d_%H-%M-%S'), argdirname, str(self._order_position))
+        if not current_time:
+            current_time = datetime.now().strftime('%Y-%m-%d_%H-%M-%S')
+        input_file = str(self.input_file.absolute())
+        input_hash= sha512(input_file.encode('utf-8')).hexdigest()[:10]
+        mydir = os.path.join(os.getcwd(), "human", current_time, input_hash, argdirname, str(self._order_position))
         Path(mydir).mkdir(parents=True, exist_ok=True)
 
         for k, filename in self.outputs.items():
             os.symlink(str(filename.absolute()), os.path.join(mydir, translate_output[k]))
         
         os.symlink(self.stdout.path.absolute(), os.path.join(mydir, "stdout.txt"))
-        os.symlink(self.input_file.absolute(), os.path.join(mydir, "input"+self.input_file.suffix))
+        os.symlink(input_file, os.path.join(mydir, "input"+self.input_file.suffix))
 
         if self.model_file:
             os.symlink(str(self.model_folder.joinpath(self.model_file).absolute()), os.path.join(mydir, "input_regressor.vwmodel"))

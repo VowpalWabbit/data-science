@@ -21,6 +21,14 @@ class HandlerBase:
     def on_task_finish(self, job, task_idx):
         ...
 
+class SymLinkResult(HandlerBase):
+    def __init__(self):
+        from datetime import datetime
+        self.time_str = datetime.now().strftime('%Y-%m-%d_%H-%M-%S') 
+
+    def on_task_finish(self, job, task_idx):
+        job[task_idx].create_human_readeable_symlink(current_time=self.time_str)
+
 
 class ProgressBars(HandlerBase):      
     def __init__(self, leave=False, verbose=False):
