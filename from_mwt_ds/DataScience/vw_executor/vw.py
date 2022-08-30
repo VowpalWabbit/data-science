@@ -135,7 +135,6 @@ class Task:
     def create_human_readeable_symlink(self, translate_output: Dict[str, str] = {"-p": "predictions.txt", "-c": "cache", "-f": "final_regressor.vwmodel", "--extra_metrics": "extra_metrics.json"}, current_time: Optional[str] = None) -> None:
         import os
         from datetime import datetime
-        from hashlib import sha512
 
         if os.name == "nt":
             def symlink_ms(source, link_name):
@@ -166,17 +165,17 @@ class Task:
 
         input_file_dir = self.input_file.parent.absolute()
         input_file_name = str(self._order_position) + "_" + str(self.input_file.name)
-        mydir = os.path.join(os.getcwd(), "human", current_time, argdirname, input_file_dir.name, input_file_name)
-        Path(mydir).mkdir(parents=True, exist_ok=True)
+        mydir = Path.cwd() / "human" / current_time / argdirname / input_file_dir.name / input_file_name
+        mydir.mkdir(parents=True, exist_ok=True)
 
         for k, filename in self.outputs.items():
-            os.symlink(str(filename.absolute()), os.path.join(mydir, translate_output[k]))
+            os.symlink(str(filename.absolute()), mydir / translate_output[k])
         
-        os.symlink(self.stdout.path.absolute(), os.path.join(mydir, "stdout.txt"))
-        os.symlink(self.input_file.absolute(), os.path.join(mydir, "input"+self.input_file.suffix))
+        os.symlink(self.stdout.path.absolute(), mydir / "stdout.txt")
+        os.symlink(self.input_file.absolute(), mydir / ("input" + self.input_file.suffix))
 
         if self.model_file:
-            os.symlink(str(self.model_folder.joinpath(self.model_file).absolute()), os.path.join(mydir, "input_regressor.vwmodel"))
+            os.symlink(str(self.model_folder.joinpath(self.model_file).absolute()), mydir / "input_regressor.vwmodel")
 
     def _prepare_args(self, cache: VwCache) -> str:
         opts = self.job.opts.copy()
