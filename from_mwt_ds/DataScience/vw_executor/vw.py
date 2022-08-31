@@ -73,12 +73,26 @@ class _VwBin(_VwCore):
 
 
 def _run_pyvw(args: str, filename=None) -> Iterable[str]:
+    import traceback
+
     from vowpalwabbit import pyvw
-    execution = pyvw.vw(args, enable_logging=True)
+    try:
+        execution = pyvw.vw(args, enable_logging=True)
+    except Exception as e:
+        if filename is not None:
+            stderr_temp = filename.parent / (filename.name + '.pending')
+            with stderr_temp.open('w') as f:
+                f.write(str(e)+"\n\n")
+                traceback.print_exc(file=f)
+            return []
+        else:
+            raise e
     execution.finish()
     result = [l.rstrip() for l in execution.get_log()]
     if filename is not None:
-        _save(result, filename)
+        stderr_temp = filename.parent / (filename.name + '.pending')
+        _save(result, stderr_temp)
+        os.replace(stderr_temp, filename)
         return []
     else:
         return result
@@ -166,17 +180,34 @@ class Task:
         input_file_dir = self.input_file.parent.absolute()
         input_file_name = str(self._order_position) + "th_file"
 
-        human_task_dir = Path.cwd() / "human" / current_time / argdirname / input_file_dir.name / input_file_name
+        stderr_temp = self.stdout.path.parent / (self.stdout.path.name + '.pending')
+
+        if stderr_temp.exists():
+            human_task_dir = Path.cwd() / "human" / current_time / "ERRORS" / argdirname / input_file_dir.name / input_file_name
+        else:
+            human_task_dir = Path.cwd() / "human" / current_time / argdirname / input_file_dir.name / input_file_name
         human_task_dir.mkdir(parents=True, exist_ok=True)
 
+        def create_symlink_if_exists(source:Path, link_name):
+            if source.exists():
+                os.symlink(source, link_name)
+
+        create_symlink_if_exists(self.stdout.path.absolute(), human_task_dir / "stdout.txt")
+        create_symlink_if_exists(self.input_file.absolute(), human_task_dir / self.input_file.name)
+
+        stdout_file = self.stdout.path.parent / (self.stdout.path.name + '.out.txt')
+        create_symlink_if_exists(stderr_temp.absolute(), human_task_dir / "ERROR_stdout.txt")
+
+        if stderr_temp.exists():
+            create_symlink_if_exists(stdout_file.absolute(), human_task_dir / "more_ERROR_stdout.txt")
+        else:
+            create_symlink_if_exists(stdout_file.absolute(), human_task_dir / "more_stdout.txt")
+
         for output_arg, filename in self.outputs.items():
-            os.symlink(str(filename.absolute()), human_task_dir / translate_output[output_arg])
-        
-        os.symlink(self.stdout.path.absolute(), human_task_dir / "stdout.txt")
-        os.symlink(self.input_file.absolute(), human_task_dir / self.input_file.name)
+            create_symlink_if_exists(filename.absolute(), human_task_dir / translate_output[output_arg])
 
         if self.model_file:
-            os.symlink(str(self.model_folder.joinpath(self.model_file).absolute()), human_task_dir / "input_regressor.vwmodel")
+            create_symlink_if_exists(self.model_folder.joinpath(self.model_file).absolute(), human_task_dir / "input_regressor.vwmodel")
 
     def _prepare_args(self, cache: VwCache) -> str:
         opts = self.job.opts.copy()
@@ -296,14 +327,16 @@ class Job:
         for i, t in enumerate(self._tasks):
             self._logger.info(f'Starting task {i}...     File name: {t.input_file}')
             self._handler.on_task_start(self, i)
-            t.run(reset)
-            self._handler.on_task_finish(self, i)
-            self._logger.info(f'Task {i} is finished: {t.status}')
-            if t.status == ExecutionStatus.Failed:
-                self.failed = t
-                break
-            for p in t.outputs:
-                self.outputs[p].append(t.outputs[p])
+            try:
+                t.run(reset)
+            finally:
+                self._handler.on_task_finish(self, i)
+                self._logger.info(f'Task {i} is finished: {t.status}')
+                if t.status == ExecutionStatus.Failed:
+                    self.failed = t
+                    break
+                for p in t.outputs:
+                    self.outputs[p].append(t.outputs[p])
 
         self.status = self.failed.status if self.failed is not None else ExecutionStatus.Success
         self._logger.info(f'Job is finished: {self.status}')
