@@ -146,7 +146,7 @@ class Task:
         self.start_time = None
         self.end_time = None
     
-    def create_human_readeable_symlink(self, translate_output: Dict[str, str] = {"-p": "predictions.txt", "-c": "cache", "-f": "final_regressor.vwmodel", "--extra_metrics": "extra_metrics.json"}, current_time: Optional[str] = None) -> None:
+    def create_human_readeable_symlink(self, translate_output: Dict[str, str] = {"-p": "predictions.txt", "-f": "final_regressor.vwmodel", "--extra_metrics": "extra_metrics.json"}, current_time: Optional[str] = None) -> None:
         import os
         from datetime import datetime
 
@@ -182,7 +182,8 @@ class Task:
 
         stderr_temp = self.stdout.path.parent / (self.stdout.path.name + '.pending')
 
-        if stderr_temp.exists():
+        if self.status == ExecutionStatus.Failed:
+            assert stderr_temp.exists()
             human_task_dir = Path.cwd() / "human" / current_time / "ERRORS" / argdirname / input_file_dir.name / input_file_name
         else:
             human_task_dir = Path.cwd() / "human" / current_time / argdirname / input_file_dir.name / input_file_name
@@ -208,6 +209,18 @@ class Task:
 
         if self.model_file:
             create_symlink_if_exists(self.model_folder.joinpath(self.model_file).absolute(), human_task_dir / "input_regressor.vwmodel")
+        
+        def rename_outputs(self):
+            splitted = self.args.split()
+            for i in range(len(splitted)-1, 0, -1):
+                if splitted[i] in self.outputs.keys():
+                    splitted[i+1] = translate_output[splitted[i]] + ".repro"
+            return " ".join(splitted)
+
+        cmd_repro_file = human_task_dir / "cmd_repro.txt"
+        with open(cmd_repro_file, "w") as f:
+            f.write(f"cwd: {str(Path.cwd().absolute())}\n")
+            f.write(f"vw args: {rename_outputs(self)}\n")
 
     def _prepare_args(self, cache: VwCache) -> str:
         opts = self.job.opts.copy()
@@ -236,6 +249,7 @@ class Task:
         return self.job.core.run(self.args, self.stdout.path)
 
     def run(self, reset: bool) -> None:
+        self.status = ExecutionStatus.Running
         result_files = list(self.outputs.values()) + [self.stdout.path]
         not_exist = next((p for p in result_files if not p.exists()), None)
         self.start_time = time.time()
@@ -245,12 +259,19 @@ class Task:
             if self._no_run:
                 raise Exception('Result is not found, and execution is deprecated')
 
-            result = self._execute()
-            assert result == []
+            try:
+                result = self._execute()
+                assert result == []
+                self.status = ExecutionStatus.Success if self.stdout.loss is not None else ExecutionStatus.Failed
+            except:
+                self.status = ExecutionStatus.Failed
+                raise
+            finally:
+                self.end_time = time.time()
         else:
             self._logger.debug(f'Result of vw execution is found: {self.args}')
-        self.end_time = time.time()
-        self.status = ExecutionStatus.Success if self.stdout.loss is not None else ExecutionStatus.Failed
+            self.end_time = time.time()
+            self.status = ExecutionStatus.Success if self.stdout.loss is not None else ExecutionStatus.Failed
 
     def reset_stdout(self) -> None:
         self.stdout.path.unlink()
@@ -332,11 +353,11 @@ class Job:
             finally:
                 self._handler.on_task_finish(self, i)
                 self._logger.info(f'Task {i} is finished: {t.status}')
+                for p in t.outputs:
+                    self.outputs[p].append(t.outputs[p])
                 if t.status == ExecutionStatus.Failed:
                     self.failed = t
                     break
-                for p in t.outputs:
-                    self.outputs[p].append(t.outputs[p])
 
         self.status = self.failed.status if self.failed is not None else ExecutionStatus.Success
         self._logger.info(f'Job is finished: {self.status}')
