@@ -113,7 +113,9 @@ def symlink(source:Path, link_name:Path):
     if os.name == "nt":
         def symlink_ms(source, link_name):
             from subprocess import call
-            call(['cmd', '/C','mklink', link_name, source], shell=False, stderr=subprocess.DEVNULL, stdout=subprocess.DEVNULL)
+            returncode = call(['cmd', '/C','mklink', link_name, source], shell=False, stderr=subprocess.DEVNULL, stdout=subprocess.DEVNULL)
+            if returncode != 0:
+                raise Exception(f"Make sure developer mode is enabled. Failed to create symlink {link_name} -> {source}.")
         return symlink_ms(source, link_name)
     else:
         return os.symlink(source, link_name)
