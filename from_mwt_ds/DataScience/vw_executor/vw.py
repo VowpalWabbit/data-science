@@ -146,7 +146,7 @@ class Task:
         self.start_time = None
         self.end_time = None
     
-    def create_human_readeable_symlink(self, translate_output: Dict[str, str] = {"-p": "predictions.txt", "-f": "final_regressor.vwmodel", "--extra_metrics": "extra_metrics.json"}, current_time: Optional[str] = None) -> None:
+    def create_human_readeable_symlink(self, translate_output: Dict[str, str] = {"-p": "predictions.txt", "-f": "final_regressor.vwmodel", "--extra_metrics": "extra_metrics.json"}, base_dir: Optional[Path] = None) -> None:
         import os
         from datetime import datetime
 
@@ -171,8 +171,8 @@ class Task:
             return ".".join(args)
         
         argdirname = clean_args(self)
-        if not current_time:
-            current_time = datetime.now().strftime('%Y-%m-%d_%H-%M-%S')
+        if not base_dir:
+            base_dir = Path.cwd() / "_results" / datetime.now().strftime('%Y-%m-%d_%H-%M-%S')
         
         if self.input_file.parent == self.input_file:
             raise ValueError("Input files cannot be on the root folder")
@@ -184,31 +184,31 @@ class Task:
 
         if self.status == ExecutionStatus.Failed:
             assert stderr_temp.exists()
-            human_task_dir = Path.cwd() / "human" / current_time / "ERRORS" / argdirname / input_file_dir.name / input_file_name
+            task_dir = base_dir / "ERRORS" / argdirname / input_file_dir.name / input_file_name
         else:
-            human_task_dir = Path.cwd() / "human" / current_time / argdirname / input_file_dir.name / input_file_name
-        human_task_dir.mkdir(parents=True, exist_ok=True)
+            task_dir = base_dir / argdirname / input_file_dir.name / input_file_name
+        task_dir.mkdir(parents=True, exist_ok=True)
 
         def create_symlink_if_exists(source:Path, link_name):
             if source.exists():
                 os.symlink(source, link_name)
 
-        create_symlink_if_exists(self.stdout.path.absolute(), human_task_dir / "stdout.txt")
-        create_symlink_if_exists(self.input_file.absolute(), human_task_dir / self.input_file.name)
+        create_symlink_if_exists(self.stdout.path.absolute(), task_dir / "stdout.txt")
+        create_symlink_if_exists(self.input_file.absolute(), task_dir / self.input_file.name)
 
         stdout_file = self.stdout.path.parent / (self.stdout.path.name + '.out.txt')
-        create_symlink_if_exists(stderr_temp.absolute(), human_task_dir / "ERROR_stdout.txt")
+        create_symlink_if_exists(stderr_temp.absolute(), task_dir / "ERROR_stdout.txt")
 
         if stderr_temp.exists():
-            create_symlink_if_exists(stdout_file.absolute(), human_task_dir / "more_ERROR_stdout.txt")
+            create_symlink_if_exists(stdout_file.absolute(), task_dir / "more_ERROR_stdout.txt")
         else:
-            create_symlink_if_exists(stdout_file.absolute(), human_task_dir / "more_stdout.txt")
+            create_symlink_if_exists(stdout_file.absolute(), task_dir / "more_stdout.txt")
 
         for output_arg, filename in self.outputs.items():
-            create_symlink_if_exists(filename.absolute(), human_task_dir / translate_output[output_arg])
+            create_symlink_if_exists(filename.absolute(), task_dir / translate_output[output_arg])
 
         if self.model_file:
-            create_symlink_if_exists(self.model_folder.joinpath(self.model_file).absolute(), human_task_dir / "input_regressor.vwmodel")
+            create_symlink_if_exists(self.model_folder.joinpath(self.model_file).absolute(), task_dir / "input_regressor.vwmodel")
         
         def rename_outputs(self):
             splitted = self.args.split()
@@ -217,7 +217,7 @@ class Task:
                     splitted[i+1] = translate_output[splitted[i]] + ".repro"
             return " ".join(splitted)
 
-        cmd_repro_file = human_task_dir / "cmd_repro.txt"
+        cmd_repro_file = task_dir / "cmd_repro.txt"
         with open(cmd_repro_file, "w") as f:
             f.write(f"cwd: {str(Path.cwd().absolute())}\n")
             f.write(f"vw args: {rename_outputs(self)}\n")
