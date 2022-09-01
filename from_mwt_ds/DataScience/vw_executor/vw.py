@@ -146,7 +146,7 @@ class Task:
         self.start_time = None
         self.end_time = None
     
-    def create_human_readeable_symlink(self, translate_output: Dict[str, str] = {"-p": "predictions.txt", "-f": "final_regressor.vwmodel", "--extra_metrics": "extra_metrics.json"}, base_dir: Optional[Path] = None) -> None:
+    def create_human_readeable_symlink(self, translate_output: Dict[str, str] = {"-p": "predictions.txt", "-f": "final_regressor.vwmodel", "--extra_metrics": "extra_metrics.json", "--invert_hash": "invert_hash.txt", "--readable_model": "readable_model.txt"}, base_dir: Optional[Path] = None) -> None:
         import os
         from datetime import datetime
 
