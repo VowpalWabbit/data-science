@@ -14,7 +14,7 @@ from vw_executor.vw_cache import VwCache
 from vw_executor.handlers import MultiHandler, HandlerBase, ProgressBars
 from vw_executor.vw_opts import VwOpts, InteractiveGrid, VwOptsLike, GridLike
 
-from typing import Iterable, Optional, Union, Dict, Any, Type, List
+from typing import Callable, Iterable, Optional, Union, Dict, Any, Type, List
 from abc import ABC, abstractmethod
 
 
@@ -73,12 +73,26 @@ class _VwBin(_VwCore):
 
 
 def _run_pyvw(args: str, filename=None) -> Iterable[str]:
+    import traceback
+
     from vowpalwabbit import pyvw
-    execution = pyvw.vw(args, enable_logging=True)
+    try:
+        execution = pyvw.vw(args, enable_logging=True)
+    except Exception as e:
+        if filename is not None:
+            stderr_temp = filename.parent / (filename.name + '.pending')
+            with stderr_temp.open('w') as f:
+                f.write(str(e)+"\n\n")
+                traceback.print_exc(file=f)
+            return []
+        else:
+            raise e
     execution.finish()
     result = [l.rstrip() for l in execution.get_log()]
     if filename is not None:
-        _save(result, filename)
+        stderr_temp = filename.parent / (filename.name + '.pending')
+        _save(result, stderr_temp)
+        os.replace(stderr_temp, filename)
         return []
     else:
         return result
@@ -93,6 +107,22 @@ class _VwPy(_VwCore):
         with Pool(1) as p:
             return p.apply(_run_pyvw, [args], {"filename": filename})
 
+def symlink(source:Path, link_name:Path):
+    import os
+
+    if os.name == "nt":
+        def symlink_ms(source, link_name):
+            from subprocess import call
+            returncode = call(['cmd', '/C','mklink', link_name, source], shell=False, stderr=subprocess.DEVNULL, stdout=subprocess.DEVNULL)
+            if returncode != 0:
+                raise Exception(f"Make sure developer mode is enabled. Failed to create symlink {link_name} -> {source}.")
+        return symlink_ms(source, link_name)
+    else:
+        return os.symlink(source, link_name)
+
+def create_symlink_if_exists(source:Path, link_name):
+    if source.exists():
+        symlink(source, link_name)
 
 class Task:
     job: 'Job'
@@ -117,6 +147,7 @@ class Task:
                  input_folder: Path,
                  model_file: Optional[Path],
                  model_folder: Path,
+                 order_position: Optional[int] = 0,
                  no_run: bool = False):
         self.job = job
         self._logger = logger
@@ -125,12 +156,69 @@ class Task:
         self.status = ExecutionStatus.NotStarted
         self.model_file = model_file
         self.model_folder = model_folder
+        self._order_position = order_position
         self._no_run = no_run
-        self.args = self._prepare_args(self.job.cache)
+        self.args = str(self._prepare_args(self.job.cache))
         self.start_time = None
         self.end_time = None
+    
+    def create_human_readeable_symlink(self, translate_output: Dict[str, str] = {"-p": "predictions.txt", "-f": "final_regressor.vwmodel", "--extra_metrics": "extra_metrics.json", "--invert_hash": "invert_hash.txt", "--readable_model": "readable_model.txt"}, base_dir: Optional[Path] = None, create_symlink: Callable = create_symlink_if_exists) -> None:
+        if self.input_file.parent == self.input_file:
+            raise ValueError("Input files cannot be on the root folder")
 
-    def _prepare_args(self, cache: VwCache) -> str:
+        def remove_argdash(arg: str):
+            if len(arg) > 1 and arg[0] == "-" and arg[1] == "-":
+                return arg[2:]
+            elif arg[0] == "-":
+                return arg[1:]
+            else:
+                return arg
+        
+        argdirname = ".".join([remove_argdash(arg) for arg in self.job.name.split()])
+
+        if not base_dir:
+            from datetime import datetime
+            base_dir = Path.cwd() / "_results" / datetime.now().strftime('%Y-%m-%d_%H-%M-%S')
+        
+        input_file_dir = self.input_file.parent.absolute()
+        input_file_name = str(self._order_position) + "th_file"
+
+        stderr_temp = self.stdout.path.parent / (self.stdout.path.name + '.pending')
+
+        if self.status == ExecutionStatus.Failed:
+            assert stderr_temp.exists()
+            task_dir = base_dir / "ERRORS" / argdirname / input_file_dir.name / input_file_name
+        else:
+            task_dir = base_dir / argdirname / input_file_dir.name / input_file_name
+        task_dir.mkdir(parents=True, exist_ok=True)
+
+        create_symlink(self.stdout.path.absolute(), task_dir / "stdout.txt")
+        create_symlink(self.input_file.absolute(), task_dir / self.input_file.name)
+
+        stdout_file = self.stdout.path.parent / (self.stdout.path.name + '.out.txt')
+        create_symlink(stderr_temp.absolute(), task_dir / "ERROR_stdout.txt")
+
+        if stderr_temp.exists():
+            create_symlink(stdout_file.absolute(), task_dir / "more_ERROR_stdout.txt")
+        else:
+            create_symlink(stdout_file.absolute(), task_dir / "more_stdout.txt")
+
+        for output_arg, filename in self.outputs.items():
+            create_symlink(filename.absolute(), task_dir / translate_output[output_arg])
+
+        if self.model_file:
+            create_symlink(self.model_folder.joinpath(self.model_file).absolute(), task_dir / "input_regressor.vwmodel")
+        
+        vw_opts = self._prepare_args(self.job.cache)
+        for o in self.outputs.keys():
+            vw_opts[o] = translate_output[o] + ".repro"
+
+        cmd_repro_file = task_dir / "cmd_repro.txt"
+        with open(cmd_repro_file, "w") as f:
+            f.write(f"cwd: {str(Path.cwd().absolute())}\n")
+            f.write(f"vw args: {str(vw_opts)}\n")
+
+    def _prepare_args(self, cache: VwCache) -> VwOpts:
         opts = self.job.opts.copy()
         opts[self.job.input_mode] = self.input_file
 
@@ -150,13 +238,14 @@ class Task:
 
         opts[self.job.input_mode] = input_full
         opts = VwOpts(dict(opts, **self.outputs))
-        return str(opts)
+        return opts
 
     def _execute(self) -> Union[str, Iterable[str]]:
         self._logger.debug(f'Executing: {self.args}')
         return self.job.core.run(self.args, self.stdout.path)
 
     def run(self, reset: bool) -> None:
+        self.status = ExecutionStatus.Running
         result_files = list(self.outputs.values()) + [self.stdout.path]
         not_exist = next((p for p in result_files if not p.exists()), None)
         self.start_time = time.time()
@@ -166,12 +255,19 @@ class Task:
             if self._no_run:
                 raise Exception('Result is not found, and execution is deprecated')
 
-            result = self._execute()
-            assert result == []
+            try:
+                result = self._execute()
+                assert result == []
+                self.status = ExecutionStatus.Success if self.stdout.loss is not None else ExecutionStatus.Failed
+            except:
+                self.status = ExecutionStatus.Failed
+                raise
+            finally:
+                self.end_time = time.time()
         else:
             self._logger.debug(f'Result of vw execution is found: {self.args}')
-        self.end_time = time.time()
-        self.status = ExecutionStatus.Success if self.stdout.loss is not None else ExecutionStatus.Failed
+            self.end_time = time.time()
+            self.status = ExecutionStatus.Success if self.stdout.loss is not None else ExecutionStatus.Failed
 
     def reset_stdout(self) -> None:
         self.stdout.path.unlink()
@@ -248,14 +344,16 @@ class Job:
         for i, t in enumerate(self._tasks):
             self._logger.info(f'Starting task {i}...     File name: {t.input_file}')
             self._handler.on_task_start(self, i)
-            t.run(reset)
-            self._handler.on_task_finish(self, i)
-            self._logger.info(f'Task {i} is finished: {t.status}')
-            if t.status == ExecutionStatus.Failed:
-                self.failed = t
-                break
-            for p in t.outputs:
-                self.outputs[p].append(t.outputs[p])
+            try:
+                t.run(reset)
+            finally:
+                self._handler.on_task_finish(self, i)
+                self._logger.info(f'Task {i} is finished: {t.status}')
+                for p in t.outputs:
+                    self.outputs[p].append(t.outputs[p])
+                if t.status == ExecutionStatus.Failed:
+                    self.failed = t
+                    break
 
         self.status = self.failed.status if self.failed is not None else ExecutionStatus.Success
         self._logger.info(f'Job is finished: {self.status}')
@@ -302,8 +400,8 @@ class TestJob(Job):
                  handler: HandlerBase,
                  logger: MultiLogger):
         super().__init__(vw, cache, opts, outputs, input_mode, handler, logger)
-        for f in files:
-            self._tasks.append(Task(self, self._logger, f, input_dir, None, cache.path, no_run))
+        for i, f in enumerate(files):
+            self._tasks.append(Task(self, self._logger, f, input_dir, None, cache.path, order_position=i, no_run=no_run))
 
 
 class TrainJob(Job):
@@ -323,7 +421,7 @@ class TrainJob(Job):
         super().__init__(vw, cache, opts, outputs, input_mode, handler, logger)
         for i, f in enumerate(files):
             model = None if i == 0 else self._tasks[i - 1].outputs_relative['-f']
-            self._tasks.append(Task(self, self._logger, f, input_dir, model, cache.path, no_run))
+            self._tasks.append(Task(self, self._logger, f, input_dir, model, cache.path, order_position=i, no_run=no_run))
 
 
 def _assert_path_is_supported(path: Union[str, Path]) -> Path:
