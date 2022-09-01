@@ -142,7 +142,7 @@ class Task:
         self.model_folder = model_folder
         self._order_position = order_position
         self._no_run = no_run
-        self.args = self._prepare_args(self.job.cache)
+        self.args = str(self._prepare_args(self.job.cache))
         self.start_time = None
         self.end_time = None
     
@@ -210,19 +210,16 @@ class Task:
         if self.model_file:
             create_symlink_if_exists(self.model_folder.joinpath(self.model_file).absolute(), task_dir / "input_regressor.vwmodel")
         
-        def rename_outputs(self):
-            splitted = self.args.split()
-            for i in range(len(splitted)-1, 0, -1):
-                if splitted[i] in self.outputs.keys():
-                    splitted[i+1] = translate_output[splitted[i]] + ".repro"
-            return " ".join(splitted)
+        vw_opts = self._prepare_args(self.job.cache)
+        for o in self.outputs.keys():
+            vw_opts[o] = translate_output[o] + ".repro"
 
         cmd_repro_file = task_dir / "cmd_repro.txt"
         with open(cmd_repro_file, "w") as f:
             f.write(f"cwd: {str(Path.cwd().absolute())}\n")
-            f.write(f"vw args: {rename_outputs(self)}\n")
+            f.write(f"vw args: {str(vw_opts)}\n")
 
-    def _prepare_args(self, cache: VwCache) -> str:
+    def _prepare_args(self, cache: VwCache) -> VwOpts:
         opts = self.job.opts.copy()
         opts[self.job.input_mode] = self.input_file
 
@@ -242,7 +239,7 @@ class Task:
 
         opts[self.job.input_mode] = input_full
         opts = VwOpts(dict(opts, **self.outputs))
-        return str(opts)
+        return opts
 
     def _execute(self) -> Union[str, Iterable[str]]:
         self._logger.debug(f'Executing: {self.args}')
