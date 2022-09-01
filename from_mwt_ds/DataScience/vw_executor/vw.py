@@ -14,7 +14,7 @@ from vw_executor.vw_cache import VwCache
 from vw_executor.handlers import MultiHandler, HandlerBase, ProgressBars
 from vw_executor.vw_opts import VwOpts, InteractiveGrid, VwOptsLike, GridLike
 
-from typing import Iterable, Optional, Union, Dict, Any, Type, List
+from typing import Callable, Iterable, Optional, Union, Dict, Any, Type, List
 from abc import ABC, abstractmethod
 
 
@@ -107,6 +107,20 @@ class _VwPy(_VwCore):
         with Pool(1) as p:
             return p.apply(_run_pyvw, [args], {"filename": filename})
 
+def symlink(source:Path, link_name:Path):
+    import os
+
+    if os.name == "nt":
+        def symlink_ms(source, link_name):
+            from subprocess import call
+            call(['cmd', '/C','mklink', link_name, source], shell=False, stderr=subprocess.DEVNULL, stdout=subprocess.DEVNULL)
+        return symlink_ms(source, link_name)
+    else:
+        return os.symlink(source, link_name)
+
+def create_symlink_if_exists(source:Path, link_name):
+    if source.exists():
+        symlink(source, link_name)
 
 class Task:
     job: 'Job'
@@ -146,16 +160,10 @@ class Task:
         self.start_time = None
         self.end_time = None
     
-    def create_human_readeable_symlink(self, translate_output: Dict[str, str] = {"-p": "predictions.txt", "-f": "final_regressor.vwmodel", "--extra_metrics": "extra_metrics.json", "--invert_hash": "invert_hash.txt", "--readable_model": "readable_model.txt"}, base_dir: Optional[Path] = None) -> None:
-        import os
-        from datetime import datetime
+    def create_human_readeable_symlink(self, translate_output: Dict[str, str] = {"-p": "predictions.txt", "-f": "final_regressor.vwmodel", "--extra_metrics": "extra_metrics.json", "--invert_hash": "invert_hash.txt", "--readable_model": "readable_model.txt"}, base_dir: Optional[Path] = None, create_symlink: Callable = create_symlink_if_exists) -> None:
+        if self.input_file.parent == self.input_file:
+            raise ValueError("Input files cannot be on the root folder")
 
-        if os.name == "nt":
-            def symlink_ms(source, link_name):
-                from subprocess import call
-                call(['cmd', '/C','mklink', link_name, source], shell=False, stderr=subprocess.DEVNULL, stdout=subprocess.DEVNULL)
-            os.symlink = symlink_ms
-        
         def remove_argdash(arg: str):
             if len(arg) > 1 and arg[0] == "-" and arg[1] == "-":
                 return arg[2:]
@@ -164,19 +172,12 @@ class Task:
             else:
                 return arg
         
-        def clean_args(self):
-            args = self.job.name.split()
+        argdirname = ".".join([remove_argdash(arg) for arg in self.job.name.split()])
 
-            args = [remove_argdash(arg) for arg in args]
-            return ".".join(args)
-        
-        argdirname = clean_args(self)
         if not base_dir:
+            from datetime import datetime
             base_dir = Path.cwd() / "_results" / datetime.now().strftime('%Y-%m-%d_%H-%M-%S')
         
-        if self.input_file.parent == self.input_file:
-            raise ValueError("Input files cannot be on the root folder")
-
         input_file_dir = self.input_file.parent.absolute()
         input_file_name = str(self._order_position) + "th_file"
 
@@ -189,26 +190,22 @@ class Task:
             task_dir = base_dir / argdirname / input_file_dir.name / input_file_name
         task_dir.mkdir(parents=True, exist_ok=True)
 
-        def create_symlink_if_exists(source:Path, link_name):
-            if source.exists():
-                os.symlink(source, link_name)
-
-        create_symlink_if_exists(self.stdout.path.absolute(), task_dir / "stdout.txt")
-        create_symlink_if_exists(self.input_file.absolute(), task_dir / self.input_file.name)
+        create_symlink(self.stdout.path.absolute(), task_dir / "stdout.txt")
+        create_symlink(self.input_file.absolute(), task_dir / self.input_file.name)
 
         stdout_file = self.stdout.path.parent / (self.stdout.path.name + '.out.txt')
-        create_symlink_if_exists(stderr_temp.absolute(), task_dir / "ERROR_stdout.txt")
+        create_symlink(stderr_temp.absolute(), task_dir / "ERROR_stdout.txt")
 
         if stderr_temp.exists():
-            create_symlink_if_exists(stdout_file.absolute(), task_dir / "more_ERROR_stdout.txt")
+            create_symlink(stdout_file.absolute(), task_dir / "more_ERROR_stdout.txt")
         else:
-            create_symlink_if_exists(stdout_file.absolute(), task_dir / "more_stdout.txt")
+            create_symlink(stdout_file.absolute(), task_dir / "more_stdout.txt")
 
         for output_arg, filename in self.outputs.items():
-            create_symlink_if_exists(filename.absolute(), task_dir / translate_output[output_arg])
+            create_symlink(filename.absolute(), task_dir / translate_output[output_arg])
 
         if self.model_file:
-            create_symlink_if_exists(self.model_folder.joinpath(self.model_file).absolute(), task_dir / "input_regressor.vwmodel")
+            create_symlink(self.model_folder.joinpath(self.model_file).absolute(), task_dir / "input_regressor.vwmodel")
         
         vw_opts = self._prepare_args(self.job.cache)
         for o in self.outputs.keys():
