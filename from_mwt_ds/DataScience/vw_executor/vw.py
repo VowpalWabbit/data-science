@@ -121,6 +121,9 @@ def symlink(source:Path, link_name:Path):
         return os.symlink(source, link_name)
 
 def create_symlink_if_exists(source:Path, link_name):
+    if link_name.exists():
+        raise ValueError('Trying overwrite existing symlink. Please consider changing the folder.')
+
     if source.exists():
         symlink(source, link_name)
 
@@ -188,7 +191,6 @@ class Task:
         stderr_temp = self.stdout.path.parent / (self.stdout.path.name + '.pending')
 
         if self.status == ExecutionStatus.Failed:
-            assert stderr_temp.exists()
             task_dir = base_dir / "ERRORS" / argdirname / input_file_dir.name / input_file_name
         else:
             task_dir = base_dir / argdirname / input_file_dir.name / input_file_name
