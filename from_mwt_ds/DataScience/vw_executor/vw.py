@@ -121,6 +121,9 @@ def symlink(source:Path, link_name:Path):
         return os.symlink(source, link_name)
 
 def create_symlink_if_exists(source:Path, link_name):
+    if link_name.exists():
+        raise ValueError('Trying to overwrite existing symlink. Please consider changing the destination folder.')
+
     if source.exists():
         symlink(source, link_name)
 
@@ -162,7 +165,12 @@ class Task:
         self.start_time = None
         self.end_time = None
     
-    def create_human_readeable_symlink(self, translate_output: Dict[str, str] = {"-p": "predictions.txt", "-f": "final_regressor.vwmodel", "--extra_metrics": "extra_metrics.json", "--invert_hash": "invert_hash.txt", "--readable_model": "readable_model.txt"}, base_dir: Optional[Path] = None, create_symlink: Callable = create_symlink_if_exists) -> None:
+    def create_human_readeable_symlink(
+        self,
+        base_dir: Optional[Union[str, Path]] = None,
+        translate_output: Dict[str, str] = {"-p": "predictions.txt", "-f": "final_regressor.vwmodel",
+        "--extra_metrics": "extra_metrics.json", "--invert_hash": "invert_hash.txt", "--readable_model": "readable_model.txt"},
+        create_symlink: Callable = create_symlink_if_exists) -> Path:
         if self.input_file.parent == self.input_file:
             raise ValueError("Input files cannot be on the root folder")
 
@@ -179,6 +187,8 @@ class Task:
         if not base_dir:
             from datetime import datetime
             base_dir = Path.cwd() / "_results" / datetime.now().strftime('%Y-%m-%d_%H-%M-%S')
+        else:
+            base_dir = Path(base_dir)
         
         input_file_dir = self.input_file.parent.absolute()
         input_file_name = str(self._order_position) + "th_file"
@@ -186,7 +196,6 @@ class Task:
         stderr_temp = self.stdout.path.parent / (self.stdout.path.name + '.pending')
 
         if self.status == ExecutionStatus.Failed:
-            assert stderr_temp.exists()
             task_dir = base_dir / "ERRORS" / argdirname / input_file_dir.name / input_file_name
         else:
             task_dir = base_dir / argdirname / input_file_dir.name / input_file_name
@@ -217,6 +226,7 @@ class Task:
         with open(cmd_repro_file, "w") as f:
             f.write(f"cwd: {str(Path.cwd().absolute())}\n")
             f.write(f"vw args: {str(vw_opts)}\n")
+        return task_dir
 
     def _prepare_args(self, cache: VwCache) -> VwOpts:
         opts = self.job.opts.copy()
