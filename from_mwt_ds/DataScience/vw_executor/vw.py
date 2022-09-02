@@ -165,7 +165,12 @@ class Task:
         self.start_time = None
         self.end_time = None
     
-    def create_human_readeable_symlink(self, base_dir: Optional[Union[str, Path]] = None, translate_output: Dict[str, str] = {"-p": "predictions.txt", "-f": "final_regressor.vwmodel", "--extra_metrics": "extra_metrics.json", "--invert_hash": "invert_hash.txt", "--readable_model": "readable_model.txt"}, create_symlink: Callable = create_symlink_if_exists) -> None:
+    def create_human_readeable_symlink(
+        self,
+        base_dir: Optional[Union[str, Path]] = None,
+        translate_output: Dict[str, str] = {"-p": "predictions.txt", "-f": "final_regressor.vwmodel",
+        "--extra_metrics": "extra_metrics.json", "--invert_hash": "invert_hash.txt", "--readable_model": "readable_model.txt"},
+        create_symlink: Callable = create_symlink_if_exists) -> Path:
         if self.input_file.parent == self.input_file:
             raise ValueError("Input files cannot be on the root folder")
 
@@ -221,6 +226,7 @@ class Task:
         with open(cmd_repro_file, "w") as f:
             f.write(f"cwd: {str(Path.cwd().absolute())}\n")
             f.write(f"vw args: {str(vw_opts)}\n")
+        return task_dir
 
     def _prepare_args(self, cache: VwCache) -> VwOpts:
         opts = self.job.opts.copy()
