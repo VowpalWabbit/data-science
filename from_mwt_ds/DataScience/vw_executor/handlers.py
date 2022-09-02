@@ -1,6 +1,6 @@
 import shutil
 from pathlib import Path
-from typing import Optional
+from typing import Optional, Union
 from datetime import datetime
 
 
@@ -24,11 +24,15 @@ class HandlerBase:
         ...
 
 class SymLinkResult(HandlerBase):
-    def __init__(self, base_dir: Optional[Path] = None):
-        self.base_dir = base_dir or Path.cwd() / "_results" / datetime.now().strftime('%Y-%m-%d_%H-%M-%S')
+    def __init__(self, base_dir: Optional[Union[str, Path]] = None):
+        self.base_dir = Path(base_dir) if base_dir else Path.cwd() / "_results"
+        self.dt = None
+
+    def on_start(self, _, __):
+        self.dt = datetime.now().strftime('%Y-%m-%d_%H-%M-%S')
 
     def on_task_finish(self, job, task_idx):
-        job[task_idx].create_human_readeable_symlink(base_dir=self.base_dir)
+        job[task_idx].create_human_readeable_symlink(base_dir=self.base_dir / self.dt)
 
 
 class ProgressBars(HandlerBase):      
