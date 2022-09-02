@@ -122,7 +122,7 @@ def symlink(source:Path, link_name:Path):
 
 def create_symlink_if_exists(source:Path, link_name):
     if link_name.exists():
-        raise ValueError('Trying overwrite existing symlink. Please consider changing the folder.')
+        raise ValueError('Trying to overwrite existing symlink. Please consider changing the destination folder.')
 
     if source.exists():
         symlink(source, link_name)
