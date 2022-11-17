@@ -12,23 +12,23 @@ class TestOutput(unittest.TestCase):
 class TestPredictions(unittest.TestCase):
     def test_predictions_scalar(self):
         predictions = Predictions('vw_executor/tests/data/artifacts/pred_scalar.txt')
-        self.assertEqual(len(predictions.scalar), 21)   
+        self.assertEqual(len(list(predictions.scalar)), 21)   
 
     def test_predictions_cb(self):
         predictions = Predictions('vw_executor/tests/data/artifacts/pred_cb.txt')
-        self.assertEqual(len(predictions.cb), 11)  
+        self.assertEqual(len(list(predictions.cb)), 11)  
 
     def test_predictions_ccb(self):
         predictions = Predictions('vw_executor/tests/data/artifacts/pred_ccb.txt')
-        self.assertEqual(len(predictions.ccb), 23)
+        self.assertEqual(len(list(predictions.ccb)), 23)
 
     def test_predictions_cats(self):
         predictions = Predictions('vw_executor/tests/data/artifacts/pred_cats.txt')
-        self.assertEqual(len(predictions.cats), 10)
+        self.assertEqual(len(list(predictions.cats)), 10)
 
     def test_predictions_csoaa_ldf(self):
         predictions = Predictions('vw_executor/tests/data/artifacts/pred_csoaa_ldf.txt')
-        self.assertEqual(len(predictions.csoaa_ldf), 3)
+        self.assertEqual(len(list(predictions.csoaa_ldf)), 3)
 
 
 class TestModel(unittest.TestCase):
