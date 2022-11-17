@@ -1,6 +1,6 @@
 import pandas as pd
 from pathlib import Path
-from typing import Optional, Tuple, Dict, Union, List, Any
+from typing import Optional, Tuple, Dict, Union, List, Any, Generator, Dict
 import json
 
 
@@ -128,56 +128,52 @@ class Predictions(Artifact):
         super().__init__(path)
 
     @property
-    def cb(self) -> pd.DataFrame:
-        result = []
-        for line in self.raw:
-            line = line.strip()
-            if len(line) == 0:
-                continue
-            result.append(dict({kv.split(':')[0]: _safe_to_float(kv.split(':')[1], None)
-                                for kv in line.split(',')}))
-        result = pd.DataFrame(result)
-        result.index.name = 'i'
-        return result
+    def cb(self) -> Generator[Dict, None, None]:
+        with open(self.path) as f:
+            for line in f:
+                line = line.strip()
+                if len(line) == 0:
+                    continue
+                yield {kv.split(':')[0]: _safe_to_float(kv.split(':')[1], None)
+                                    for kv in line.split(',')}
 
     @property
-    def ccb(self) -> pd.DataFrame:
-        result = []
+    def ccb(self) -> Generator[Dict, None, None]:
         session = 0
         slot = 0
-        for line in self.raw:
-            line = line.strip()
-            if len(line) == 0:
-                slot = 0
-                session += 1
-                continue
-            result.append(dict({kv.split(':')[0]: _safe_to_float(kv.split(':')[1], None)
-                                for kv in line.split(',')}, **{'session': session, 'slot': slot}))
-            slot += 1
-        return pd.DataFrame(result).set_index(['session', 'slot'])
-
-    @property
-    def scalar(self) -> pd.DataFrame:
         with open(self.path) as f:
-            return pd.DataFrame([{'i': i, 'y': _safe_to_float(l.strip(), None)} for i, l in enumerate(f)]).set_index(
-                'i')
+            for line in f:
+                line = line.strip()
+                if len(line) == 0:
+                    slot = 0
+                    session += 1
+                    continue
+                yield dict({kv.split(':')[0]: _safe_to_float(kv.split(':')[1], None)
+                                    for kv in line.split(',')}, **{'session': session, 'slot': slot})
+                slot += 1
 
     @property
-    def cats(self) -> pd.DataFrame:
-        result = {'action': [], 'prob': []}
-        for line in self.raw:
-            line = line.strip()
-            if len(line) == 0:
-                continue
-            action, prob = line.split(',')
-            result['action'].append(_safe_to_float(action, None))
-            result['prob'].append(_safe_to_float(prob, None))
-        result = pd.DataFrame(result)
-        result.index.name = 'i'
-        return result
+    def slates(self) -> Generator[Dict, None, None]:
+        return self.ccb
 
     @property
-    def csoaa_ldf(self) -> pd.DataFrame:
+    def scalar(self) -> Generator[Dict, None, None]:
+        with open(self.path) as f:
+            for line in f:
+                yield {'y': _safe_to_float(line.strip(), None)}
+
+    @property
+    def cats(self) -> Generator[Dict, None, None]:
+        with open(self.path) as f:
+            for line in f:
+                line = line.strip()
+                if len(line) == 0:
+                    continue
+                action, prob = line.split(',')
+                yield {'action': _safe_to_float(action, None), 'prob': _safe_to_float(prob, None)}
+
+    @property
+    def csoaa_ldf(self) -> Generator[Dict, None, None]:
         result = []
         index = 0
         label = 0
@@ -185,7 +181,7 @@ class Predictions(Artifact):
         for line in self.raw:
             line = line.strip()
             if len(line) == 0:
-                result.append({'index': index, 'label': label})
+                yield {'index': index, 'label': label}
                 index = 0
                 label = 0
                 i = 0
@@ -195,9 +191,7 @@ class Predictions(Artifact):
                 if value:
                     index = i
                     label = value
-                i += 1
-       
-        return pd.DataFrame(result)        
+                i += 1      
 
 
 class Model8(Artifact):
