@@ -14,7 +14,8 @@ from vw_executor.vw_cache import VwCache
 from vw_executor.handlers import MultiHandler, HandlerBase, ProgressBars
 from vw_executor.vw_opts import VwOpts, InteractiveGrid, VwOptsLike, GridLike
 
-from typing import Callable, Iterable, Optional, Union, Dict, Any, Type, List
+from typing import Callable, Iterable, Optional, Union, Dict, Any, Type, List, Generator
+from itertools import chain
 from abc import ABC, abstractmethod
 
 
@@ -285,8 +286,11 @@ class Task:
     def _get_artifact(self, key: str, artifact_type: Type) -> Any:
         return artifact_type(self.outputs[key])
 
-    def predictions(self, key: str) -> Predictions:
-        return self._get_artifact(key, Predictions)
+    def predictions(self, key: str, problem = None) -> Union[Predictions, Generator[Dict, None, None]]:
+        if not problem:
+            return self._get_artifact(key, Predictions)
+        events = problem.fget(self._get_artifact(key, Predictions))
+        return map(lambda i_d: dict(i_d[1], **{'i': i_d[0]}), enumerate(events))
 
     def model8(self, key: str) -> Model8:
         return self._get_artifact(key, Model8)
@@ -395,6 +399,13 @@ class Job:
     @property
     def metrics(self) -> pd.DataFrame:
         return pd.DataFrame([t.metrics for t in self._tasks])
+
+    def predictions(self, key: str, problem) -> Generator[Dict, None, None]:
+        if not problem:
+            raise ValueError('Problem should be defined for job')
+        for i, task in enumerate(self):
+            for event in task.predictions(key, problem):
+                yield dict(event, **{'file': i})
 
 
 class TestJob(Job):
