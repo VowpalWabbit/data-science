@@ -20,7 +20,7 @@ class TestPredictions(unittest.TestCase):
 
     def test_predictions_ccb(self):
         predictions = Predictions('vw_executor/tests/data/artifacts/pred_ccb.txt')
-        self.assertEqual(len(list(predictions.ccb)), 23)
+        self.assertEqual(len(list(predictions.ccb_slot)), 23)
 
     def test_predictions_cats(self):
         predictions = Predictions('vw_executor/tests/data/artifacts/pred_cats.txt')

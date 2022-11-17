@@ -138,7 +138,7 @@ class Predictions(Artifact):
                                     for kv in line.split(',')}
 
     @property
-    def ccb(self) -> Generator[Dict, None, None]:
+    def ccb_slot(self) -> Generator[Dict, None, None]:
         session = 0
         slot = 0
         with open(self.path) as f:
@@ -153,8 +153,8 @@ class Predictions(Artifact):
                 slot += 1
 
     @property
-    def slates(self) -> Generator[Dict, None, None]:
-        return self.ccb
+    def slates_slot(self) -> Generator[Dict, None, None]:
+        return self.ccb_slot
 
     @property
     def scalar(self) -> Generator[Dict, None, None]:
