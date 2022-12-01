@@ -55,6 +55,7 @@ class VwPlayground:
                 self.visualization.after_train(self.examples, self.last_job)
             except Exception as e:
                 self.exception = e
+            self.visualization.finalize(self.exception is None)
 
         collapsed, separator = _collapse(simulator_grid, vw_grid)
         widget = interactive(_run_and_plot, separator=fixed(separator), **collapsed)
