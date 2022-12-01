@@ -11,7 +11,7 @@ class Dashboard:
         self.env_visualizers = []
         self.train_visualizers = []
 
-        self.fig = plt.figure(figsize=figsize)
+        self.fig = plt.figure(figsize=figsize, linewidth=5, edgecolor='green')
         plots_over_y = len(visualizers)
         plots_over_x = max([len(row) for row in visualizers])
         gs = gridspec.GridSpec(plots_over_y, 2 * plots_over_x)
@@ -30,6 +30,7 @@ class Dashboard:
         self.vw_outputs = required_outputs
 
     def reset(self):
+        self.fig.set_edgecolor('green')
         [ax_v[0].clear() for ax_v in self.env_visualizers]
         [ax_v[0].clear() for ax_v in self.train_visualizers]
 
@@ -38,4 +39,7 @@ class Dashboard:
 
     def after_train(self, examples, job):
         [ax_v[1](examples, job, ax=ax_v[0]) for ax_v in self.train_visualizers]
+
+    def finalize(self, success):
+        self.fig.set_edgecolor('green' if success else 'red')
         self.fig.canvas.draw_idle()

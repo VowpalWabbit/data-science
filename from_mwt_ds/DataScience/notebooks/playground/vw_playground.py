@@ -1,4 +1,4 @@
-from ipywidgets import interactive, VBox, Accordion, Layout, GridBox, fixed
+from ipywidgets import interactive, VBox, Accordion, Layout, GridBox, fixed, HTML
 from pathlib import Path
 from vw_executor.vw import Vw
 from functools import reduce
@@ -38,18 +38,24 @@ class VwPlayground:
         self.visualization = visualization
         self.last_job = None
         self.vw = Vw(cache_path, vw_binary, handler=None)
+        self.exception = None
 
     def run(self, simulator_grid, vw_grid, columns=4):
         def _run_and_plot(separator, **options):
-            sim_opts, train_opts = _split(options, separator)
-            self.visualization.reset()
-            if sim_opts != self.sim_opts:
-                self.sim_opts = sim_opts
-                self.examples, self.examples_path = get_simulation(self.data_folder, self.simulation, **sim_opts)
-            self.visualization.after_simulation(self.examples)
-            self.last_job = self.vw.train(
-                [self.examples_path], train_opts, self.visualization.vw_outputs)
-            self.visualization.after_train(self.examples, self.last_job)
+            self.exception = None
+            try:
+                sim_opts, train_opts = _split(options, separator)
+                self.visualization.reset()
+                if sim_opts != self.sim_opts:
+                    self.sim_opts = sim_opts
+                    self.examples, self.examples_path = get_simulation(self.data_folder, self.simulation, **sim_opts)
+                self.visualization.after_simulation(self.examples)
+                self.last_job = self.vw.train(
+                    [self.examples_path], train_opts, self.visualization.vw_outputs)
+                self.visualization.after_train(self.examples, self.last_job)
+            except Exception as e:
+                self.exception = e
+            self.visualization.finalize(self.exception is None)
 
         collapsed, separator = _collapse(simulator_grid, vw_grid)
         widget = interactive(_run_and_plot, separator=fixed(separator), **collapsed)
