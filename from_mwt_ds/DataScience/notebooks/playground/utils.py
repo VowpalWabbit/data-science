@@ -44,3 +44,11 @@ def ccb_df(examples):
         'chosen': e['_outcomes'][i]['_a'][0],
         'prob': e['_outcomes'][i]['_p'][0]
     } for e in examples for i in range(len(e['_outcomes']))])
+
+
+class Metric:
+    def __init__(self, name):
+        self.name = name
+
+    def __call__(self, job):
+        return job[0].metrics[self.name]
