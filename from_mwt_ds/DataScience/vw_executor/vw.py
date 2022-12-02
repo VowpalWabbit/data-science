@@ -67,8 +67,7 @@ class _VwBin(_VwCore):
         stdout_file.close()
         stderr_file.close()
 
-        if returncode == 0:
-            os.replace(stderr_temp, out_path)
+        os.replace(stderr_temp, out_path)
 
         return []
 
