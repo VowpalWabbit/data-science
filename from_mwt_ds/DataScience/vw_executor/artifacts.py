@@ -226,7 +226,11 @@ class Model9(Artifact):
             parts = line.split(' ')[0].split(':')
             result['name'].append(parts[0])
             result['weight'].append(_safe_to_float(parts[-1], None))
-        return pd.DataFrame(result).set_index('name')
+
+        df = pd.DataFrame(result)
+        df.set_index('name', inplace=True)
+        df.sort_index(inplace=True)
+        return df
 
 
 class Model(Artifact):
