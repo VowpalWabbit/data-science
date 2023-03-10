@@ -216,9 +216,33 @@ class Model9(Artifact):
     def __init__(self, path: Union[str, Path]):
         super().__init__(path)
 
+    @staticmethod
+    def parse_invert_hash(s: str, weight: Dict):
+        def get_ns(s: str) -> str:
+            split = s.split('^')
+            return "^".join(split[:-1]), split[-1]
+
+        interacted = s.split('*')
+        
+        if len(interacted) == 1:
+            weight["ft_type"].append("feature")
+            weight["ns1"].append(None)
+            weight["ns2"].append(None)
+            weight["ns3"].append(None)
+        elif len(interacted) == 2:
+            weight["ft_type"].append("quadratic")
+            weight["ns1"].append(get_ns(interacted[0]))
+            weight["ns2"].append(get_ns(interacted[1]))
+            weight["ns3"].append(None)
+        elif len(interacted) == 3:
+            weight["ft_type"].append("cubic")
+            weight["ns1"].append(get_ns(interacted[0]))
+            weight["ns2"].append(get_ns(interacted[1]))
+            weight["ns3"].append(get_ns(interacted[2]))
+
     @property
     def weights(self) -> pd.DataFrame:
-        result = {'name': [], 'weight': []}
+        result = {'name': [], 'weight': [], 'ft_type': [], 'ns1': [], 'ns2': [], 'ns3': []}
         for line in reversed(self.raw):
             if ':' not in line:
                 break
@@ -226,7 +250,7 @@ class Model9(Artifact):
             parts = line.split(' ')[0].split(':')
             result['name'].append(parts[0])
             result['weight'].append(_safe_to_float(parts[-1], None))
-
+            Model9.parse_invert_hash(parts[0], result)
         df = pd.DataFrame(result)
         df.set_index('name', inplace=True)
         df.sort_index(inplace=True)
