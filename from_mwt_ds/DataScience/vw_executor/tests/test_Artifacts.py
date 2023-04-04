@@ -16,8 +16,8 @@ class TestPredictions(unittest.TestCase):
 
     def test_predictions_cb(self):
         predictions = Predictions('vw_executor/tests/data/artifacts/pred_cb.txt')
-        self.assertEqual(len(predictions.cb), 11)  
         preds = predictions.cb
+        self.assertEqual(len(preds), 11)  
         # simulate iterating over the dataframe - like in cse
         column_0_iterated = [row[0] for _, row in preds.iterrows()]
         self.assertEqual(column_0_iterated,[0.5, 0.5, 0.025, 0.025, 0.025, 0.025, 0.025, 0.025, 0.025, 0.025, 1.0])
