@@ -17,6 +17,7 @@ class TestPredictions(unittest.TestCase):
     def test_predictions_cb(self):
         predictions = Predictions('vw_executor/tests/data/artifacts/pred_cb.txt')
         self.assertEqual(len(list(predictions.cb)), 11)  
+        print(list(predictions.cb))
 
     def test_predictions_ccb(self):
         predictions = Predictions('vw_executor/tests/data/artifacts/pred_ccb.txt')
