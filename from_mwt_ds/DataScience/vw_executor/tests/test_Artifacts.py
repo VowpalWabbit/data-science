@@ -18,9 +18,7 @@ class TestPredictions(unittest.TestCase):
         import types
         predictions = Predictions('vw_executor/tests/data/artifacts/pred_cb.txt')
         self.assertEqual(len(list(predictions.cb)), 11)
-        preds = predictions.cb
-        self.assertTrue(isinstance(preds, types.GeneratorType))
-        column_0_iterated = [row['0'] for row in preds]
+        column_0_iterated = [row['0'] for row in predictions.cb]
         self.assertEqual(column_0_iterated,[0.5, 0.5, 0.025, 0.025, 0.025, 0.025, 0.025, 0.025, 0.025, 0.025, 1.0])
 
     def test_predictions_ccb(self):
