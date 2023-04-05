@@ -15,16 +15,13 @@ class TestPredictions(unittest.TestCase):
         self.assertEqual(len(list(predictions.scalar)), 21)   
 
     def test_predictions_cb(self):
+        import types
         predictions = Predictions('vw_executor/tests/data/artifacts/pred_cb.txt')
+        self.assertEqual(len(list(predictions.cb)), 11)
         preds = predictions.cb
-        self.assertEqual(len(list(preds)), 11)  
-        # simulate iterating over the dataframe - like in cse
-        column_0_iterated = [row[0] for _, row in preds.iterrows()]
+        self.assertTrue(isinstance(preds, types.GeneratorType))
+        column_0_iterated = [row['0'] for row in preds]
         self.assertEqual(column_0_iterated,[0.5, 0.5, 0.025, 0.025, 0.025, 0.025, 0.025, 0.025, 0.025, 0.025, 1.0])
-
-        # default iterable - returns column names without index column
-        default_iterable = [elem for elem in preds]
-        self.assertEqual(default_iterable, ['0', '1'])
 
     def test_predictions_ccb(self):
         predictions = Predictions('vw_executor/tests/data/artifacts/pred_ccb.txt')
