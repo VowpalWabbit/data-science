@@ -12,14 +12,17 @@ class TestOutput(unittest.TestCase):
 class TestPredictions(unittest.TestCase):
     def test_predictions_scalar(self):
         predictions = Predictions('vw_executor/tests/data/artifacts/pred_scalar.txt')
-        self.assertEqual(len(list(predictions.scalar)), 21)   
+        self.assertEqual(len(list(predictions.scalar)), 21)
 
     def test_predictions_cb(self):
-        import types
         predictions = Predictions('vw_executor/tests/data/artifacts/pred_cb.txt')
         self.assertEqual(len(list(predictions.cb)), 11)
         column_0_iterated = [row['0'] for row in predictions.cb]
         self.assertEqual(column_0_iterated,[0.5, 0.5, 0.025, 0.025, 0.025, 0.025, 0.025, 0.025, 0.025, 0.025, 1.0])
+        self.assertEqual(len(column_0_iterated), 11)
+        column_1_iterated = [row['1'] for row in predictions.cb if '1' in row]
+        self.assertEqual(column_1_iterated,[0.5, 0.5, 0.975, 0.975, 0.975, 0.975, 0.975, 0.975, 0.975, 0.975])
+        self.assertEqual(len(column_1_iterated), 10)
 
     def test_predictions_ccb(self):
         predictions = Predictions('vw_executor/tests/data/artifacts/pred_ccb.txt')
