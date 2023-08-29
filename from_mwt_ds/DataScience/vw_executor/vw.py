@@ -77,7 +77,7 @@ def _run_pyvw(args: str, filename=None) -> Iterable[str]:
 
     from vowpalwabbit import pyvw
     try:
-        execution = pyvw.vw(args, enable_logging=True)
+        execution = pyvw.Workspace(args, enable_logging=True)
     except Exception as e:
         if filename is not None:
             stderr_temp = filename.parent / (filename.name + '.pending')
