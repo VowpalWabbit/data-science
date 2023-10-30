@@ -176,7 +176,12 @@ class MultiFileLogger(_Logger):
     level_str: str
     folder: Path
 
-    def __init__(self, folder: Union[str, Path], level: str = 'INFO', reset: bool = False):
+    def __init__(
+            self,
+            folder: Union[str, Path],
+            level: str = 'INFO',
+            reset: bool = False,
+            translate_table: Optional[dict] = None):
         '''
         Constructor.
         Parameters:
@@ -188,6 +193,18 @@ class MultiFileLogger(_Logger):
         self.folder = Path(folder)
         self.folder.mkdir(parents=True, exist_ok=True)
         self.reset = reset
+        default_trans_table = {
+            '<': '.LT',
+            '>': '.GT',
+            ':': '.CLN',
+            '"': '.QT',
+            '/': '.SL',
+            '\\': '.BSL',
+            '|': '.PP',
+            '?': '.Q',
+            '*': '.WC'
+        }
+        self.translate_table = str.maketrans(translate_table or default_trans_table)
         path = self.folder.joinpath(f'log.txt')
         if self.reset and path.exists():
             path.unlink()
@@ -196,7 +213,7 @@ class MultiFileLogger(_Logger):
 
     def __getitem__(self, key: str) -> 'MultiFileLogger':
         return MultiFileLogger(
-            folder=self.folder.joinpath(key),
+            folder=self.folder.joinpath(key.translate(self.translate_table)),
             level=self.level_str,
             reset=self.reset)
     
