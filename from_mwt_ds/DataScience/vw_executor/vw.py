@@ -103,8 +103,11 @@ class _VwPy(_VwCore):
         super().__init__(None)
 
     def run(self, args: str, filename=None) -> Iterable[str]:
-        from multiprocessing import Pool
-        with Pool(1) as p:
+        # Use spawn context to avoid fork issues with pybind11
+        # Each VW call runs in its own subprocess for isolation
+        import multiprocessing
+        ctx = multiprocessing.get_context('spawn')
+        with ctx.Pool(1) as p:
             return p.apply(_run_pyvw, [args], {"filename": filename})
 
 def symlink(source:Path, link_name:Path):
